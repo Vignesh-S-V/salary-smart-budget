@@ -24,14 +24,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: "npm"
       - name: Install dependencies
         run: npm install
       - name: Build static site
         run: npm run build
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://ssgbabvtmijhkrqgyrmp.supabase.co
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: sb_publishable_GdSS1_BZfcPiM4LijEmiWQ_eotgebIP
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Upload Pages artifact
