@@ -7,14 +7,15 @@ import { ArrowDownRight, ArrowUpRight, BadgeIndianRupee, CalendarDays, Check, Ch
 type Salary = { id:string; monthly_salary:number; effective_from:string; note:string|null };
 type Expense = { id:string; item_name:string; amount:number; quantity:number; category_name:string; spent_at:string; notes:string|null };
 const COLORS = ["#1d5fd6","#477dde","#719be5","#9db9ec","#c8d7f4"];
-const CATEGORIES = ["Groceries","Medical","Transport","Bills","Food & Drinks","Shopping","Home & Essentials","Education","Entertainment","Investment & Savings","Other"];
+const CATEGORIES = ["Groceries","Medical","Transport","Bills","Loan","Food & Drinks","Shopping","Home & Essentials","Education","Entertainment","Investment & Savings","Other"];
 const money = (n:number) => new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR",minimumFractionDigits:2,maximumFractionDigits:2}).format(n||0);
 const today = () => new Date().toLocaleDateString("en-CA");
 const CATEGORY_RULES: Array<{category:string;pattern:RegExp;examples:string}> = [
  {category:"Groceries",pattern:/\b(coconut|thengai|rice|arisi|milk|paal|vegetable|vegetables|kaai|tomato|thakkali|onion|vengayam|grocery|groceries|oil|ennai|dal|dhal|paruppu|fruit|fruits|pazham|egg|eggs|bread|atta|flour|sugar|salt|masala|spice|provision|wheat|maida|curd|yogurt|butter|cheese|chicken|mutton|fish|meen|prawn|water can|mineral water|snacks packet|potato|urulaikizhangu|carrot|beans|keerai|banana|vazhaipazham|apple|orange|rice bag)\b/i,examples:"rice, milk, vegetables, coconut, dal"},
  {category:"Medical",pattern:/\b(tablet|tablets|medicine|medicines|medical|doctor|hospital|pharmacy|clinic|health|blood test|scan|xray|x-ray|medical shop|syrup|paracetamol|panadol|bandage|vitamin|consultation)\b/i,examples:"medicine, doctor, tablets"},
  {category:"Transport",pattern:/\b(petrol|diesel|fuel|bus|train|auto|cab|uber|ola|rapido|taxi|parking|toll|metro|travel ticket|bike service|car service|puncture|tyre|tire|petrol bunk)\b/i,examples:"petrol, bus, auto, parking"},
- {category:"Bills",pattern:/\b(eb bill|electricity|current bill|water bill|internet|wifi|broadband|recharge|rent|gas cylinder|mobile bill|phone bill|postpaid|prepaid|dth|subscription|insurance premium|loan emi|gold loan|home loan|car loan|personal loan|emi)\b/i,examples:"EB bill, recharge, rent, EMI, gold loan"},
+ {category:"Bills",pattern:/\b(eb bill|electricity|current bill|water bill|credit card bill|credit card payment|internet|wifi|broadband|recharge|rent|gas cylinder|mobile bill|phone bill|postpaid|prepaid|dth|subscription|insurance premium)\b/i,examples:"EB bill, electricity, credit card bill, recharge, rent"},
+ {category:"Loan",pattern:/\b(loan|loans|emi|principal payment|loan repayment|loan installment)\b/i,examples:"personal loan, gold loan, home loan, car loan EMI"},
  {category:"Food & Drinks",pattern:/\b(hotel|restaurant|tea|coffee|snack|snacks|lunch|dinner|breakfast|juice|swiggy|zomato|food|meals|biriyani|biryani|dosa|dosai|idli|idl(i|y)|parotta|paratha|pizza|burger|bakery|cake|ice cream|icecream|tiffin|parcel food|sweets|juice shop|sappadu|saapadu|saapad|sambar|sambhar|rasam|vadai|vada|bajji|bonda|pongal|upma|chapati|chapathi|chappathi|poori|puri|vada pav|pav bhaji|puffs|bun|biscuit|milkshake|falooda|shawarma|rolls|fried rice|noodles|kothu parotta|curd rice|lemon rice|meals parcel|mess bill|canteen|tiffin kadai|tea kadai|coffee shop)\b/i,examples:"tea, meals, biryani, snacks"},
  {category:"Shopping",pattern:/\b(shirt|shirts|dress|shoe|shoes|clothes|clothing|jeans|saree|sari|chappal|slippers|watch|bag|handbag|amazon|flipkart|myntra|online shopping|tshirt|t-shirt|uniform|belt|wallet|jewellery|jewelry|cosmetics|perfume)\b/i,examples:"shirt, shoes, clothes"},
  {category:"Home & Essentials",pattern:/\b(soap|detergent|washing powder|cleaner|bucket|utensil|vessel|broom|mop|house|home|dishwash|dish wash|toothpaste|toothbrush|shampoo|tissue|garbage bag|cleaning liquid|floor cleaner|bulb|battery|kitchen item|cooking gas stove)\b/i,examples:"soap, detergent, cleaning items"},
@@ -30,8 +31,10 @@ function categorySuggestion(item:string) {
  const tokenPhrase=(phrases:string[])=>phrases.some(has);
 
  // Strong financial intent is resolved before restaurant and general expense words.
- if(tokenPhrase(["gold loan","home loan","car loan","personal loan","business loan","education loan","vehicle loan","housing loan","loan emi","emi","rent","electricity bill","water bill","current bill","internet bill","wifi bill","recharge","insurance premium","gas bill","mobile bill","phone bill"]))
-  return {category:"Bills",matched:true,examples:"loan EMI, gold loan, rent, electricity, recharge"};
+ if(tokenPhrase(["loan","loans","emi"]) || /\b(loan|emi)\b/.test(normalized))
+  return {category:"Loan",matched:true,examples:"personal loan, gold loan, home loan, car loan EMI"};
+ if(tokenPhrase(["credit card bill","credit card payment","rent","electricity bill","electricity","current bill","water bill","internet bill","wifi bill","recharge","insurance premium","gas bill","mobile bill","phone bill","subscription"]))
+  return {category:"Bills",matched:true,examples:"credit card bill, electricity, recharge, rent"};
  if(tokenPhrase(["sip","crt sip","crt","mutual fund","mutual funds","stock","stocks","share","shares","share market","stock market","investment","investments","recurring deposit","fixed deposit","gold savings","gold scheme","chit fund","nps","ppf","elss","index fund","equity fund","nifty","sensex","ppf","epf","rd","fd"]))
   return {category:"Investment & Savings",matched:true,examples:"SIP, CRT SIP, mutual funds, stocks, savings deposits"};
 
