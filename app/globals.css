@@ -232,3 +232,34 @@ dashboard-content footer, .dashboard-content footer { min-height: 54px; display:
 .budget-history-notice svg { flex: 0 0 auto; margin-top: 1px; }
 .budget-method-note { margin: 14px 0 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
 @media (max-width: 640px) { .budget-history-badge { margin-top: 4px; } }
+
+
+/* Monthly savings and investment guide */
+.investment-section { margin-bottom: 18px; padding: 0 18px 18px; }
+.investment-heading { margin: 0 -18px; padding: 16px 18px; align-items: flex-start; }
+.investment-heading > div { min-width: 0; }
+.investment-heading h2 { margin: 0; font-size: 17px; }
+.investment-heading p { margin: 5px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.investment-controls { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 14px; padding: 18px 0; }
+.investment-controls label { display: flex; flex-direction: column; gap: 7px; font-weight: 700; font-size: 12px; }
+.investment-help { color: var(--muted); font-size: 11px; font-weight: 400; line-height: 1.5; }
+.investment-summary { display: flex; flex-wrap: wrap; gap: 24px; padding: 15px; border-radius: 8px; background: var(--accent-soft); }
+.investment-summary > div { display: flex; flex-direction: column; gap: 4px; }
+.investment-summary span { color: var(--muted); font-size: 11px; }
+.investment-summary strong { font-size: 16px; }
+.investment-options { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; margin-top: 14px; }
+.investment-option { padding: 15px; border: 1px solid var(--border); border-radius: 8px; min-width: 0; }
+.investment-option-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.investment-option h3 { margin: 0; font-size: 14px; }
+.investment-option-top > span { flex: 0 0 auto; padding: 4px 7px; border-radius: 999px; background: var(--soft); color: var(--muted); font-size: 10px; font-weight: 700; }
+.investment-facts { display: grid; gap: 10px; grid-template-columns: repeat(3,minmax(0,1fr)); margin: 14px 0 10px; }
+.investment-facts > div { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.investment-facts small { color: var(--muted); font-size: 10px; }
+.investment-facts strong { font-size: 11px; overflow-wrap: anywhere; }
+.investment-option p, .investment-warning p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.investment-warning { display: flex; align-items: flex-start; gap: 11px; margin-top: 15px; padding: 13px; border: 1px solid #f1d49a; border-radius: 8px; background: #fff9e9; color: #795b20; }
+.investment-warning svg { flex: 0 0 auto; }
+.investment-warning strong { display: block; margin-bottom: 4px; font-size: 12px; }
+.investment-disclaimer { margin: 12px 0 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
+@media (max-width: 860px) { .investment-controls { grid-template-columns: 1fr 1fr; } .investment-controls label:first-child { grid-column: 1 / -1; } }
+@media (max-width: 680px) { .investment-section { padding-inline: 13px; } .investment-heading { margin-inline: -13px; padding-inline: 13px; } .investment-controls, .investment-options { grid-template-columns: 1fr; } .investment-controls label:first-child { grid-column: auto; } .investment-summary { gap: 15px; } .investment-summary > div { min-width: 42%; } .investment-facts { grid-template-columns: 1fr; gap: 7px; } .investment-facts > div { flex-direction: row; justify-content: space-between; gap: 12px; } .investment-facts strong { text-align: right; } }
