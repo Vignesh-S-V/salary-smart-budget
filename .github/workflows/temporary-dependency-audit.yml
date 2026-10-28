@@ -1,0 +1,18 @@
+name: Temporary dependency audit
+on:
+  pull_request:
+    branches: [main]
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Report npm audit findings
+        run: |
+          npm audit --json > audit.json || true
+          node -e "const a=require('./audit.json'); console.log(JSON.stringify(a.metadata?.vulnerabilities,null,2)); for (const [name,v] of Object.entries(a.vulnerabilities||{})) console.log(JSON.stringify({name,severity:v.severity,range:v.range,fixAvailable:v.fixAvailable,via:v.via.map(x=>typeof x==='string'?x:{title:x.title,url:x.url,range:x.range})}));"
