@@ -263,3 +263,57 @@ dashboard-content footer, .dashboard-content footer { min-height: 54px; display:
 .investment-disclaimer { margin: 12px 0 0; color: var(--muted); font-size: 11px; line-height: 1.6; }
 @media (max-width: 860px) { .investment-controls { grid-template-columns: 1fr 1fr; } .investment-controls label:first-child { grid-column: 1 / -1; } }
 @media (max-width: 680px) { .investment-section { padding-inline: 13px; } .investment-heading { margin-inline: -13px; padding-inline: 13px; } .investment-controls, .investment-options { grid-template-columns: 1fr; } .investment-controls label:first-child { grid-column: auto; } .investment-summary { gap: 15px; } .investment-summary > div { min-width: 42%; } .investment-facts { grid-template-columns: 1fr; gap: 7px; } .investment-facts > div { flex-direction: row; justify-content: space-between; gap: 12px; } .investment-facts strong { text-align: right; } }
+
+
+/* Responsive refinements for desktop, tablet and mobile */
+@media (min-width: 861px) and (max-width: 1180px) {
+  .dashboard-shell { grid-template-columns: 210px minmax(0, 1fr); }
+  .dashboard-content { width: calc(100% - 36px); }
+  .page-title-row { gap: 14px; }
+  .page-title-row h1 { font-size: 25px; }
+  .overview-actions { gap: 8px; }
+  .overview-actions input { width: 145px; }
+  .expense-grid { grid-template-columns: minmax(0, 1.05fr) minmax(270px, .95fr); gap: 12px; }
+  .expense-form-panel, .category-panel { padding: 14px; }
+  .investment-controls { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .investment-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .investment-facts { grid-template-columns: 1fr; gap: 7px; }
+  .investment-facts > div { flex-direction: row; justify-content: space-between; gap: 10px; }
+  .investment-facts strong { text-align: right; }
+}
+@media (min-width: 681px) and (max-width: 860px) {
+  .dashboard-content { width: calc(100% - 36px); padding-top: 22px; }
+  .page-title-row { min-height: 0; flex-wrap: wrap; gap: 14px; margin-bottom: 18px; }
+  .page-title-row > div:first-child { min-width: 0; flex: 1 1 260px; }
+  .page-title-row h1 { font-size: 26px; }
+  .overview-actions { flex: 1 1 100%; justify-content: flex-start; }
+  .overview-actions label { min-width: 0; }
+  .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .expense-grid, .insights-grid { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .expense-form-panel, .category-panel, .trend-panel, .repeats-panel { min-width: 0; }
+  .investment-section { padding-inline: 14px; }
+  .investment-heading { margin-inline: -14px; padding-inline: 14px; }
+  .investment-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .investment-controls label:first-child { grid-column: 1 / -1; }
+  .investment-options { grid-template-columns: 1fr; }
+  .investment-facts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .investment-facts > div { flex-direction: column; }
+  .investment-facts strong { text-align: left; }
+  .budget-summary { flex-wrap: wrap; gap: 16px; }
+}
+@media (max-width: 680px) {
+  .page-title-row { gap: 12px; }
+  .overview-actions { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 8px; }
+  .overview-actions label { min-width: 0; }
+  .overview-actions .btn { padding-inline: 10px; white-space: nowrap; }
+  .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .investment-heading { gap: 8px; }
+  .investment-heading .budget-history-badge { white-space: nowrap; }
+  .investment-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .investment-summary > div { min-width: 0; }
+  .investment-summary strong { font-size: 15px; overflow-wrap: anywhere; }
+  .investment-option-top { flex-wrap: wrap; }
+  .investment-option-top > span { white-space: normal; }
+  .budget-section, .investment-section, .transaction-section { min-width: 0; }
+  .dashboard-content footer { gap: 8px; }
+}
