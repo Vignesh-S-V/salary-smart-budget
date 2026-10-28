@@ -68,7 +68,6 @@ export default function Home() {
  const budget=useMemo(()=>{
   // Recommend next month's category limits from the most recent 2–6 complete months.
   // Current selected month is excluded so the forecast is based on history only.
-  const targetStart=new Date(month+"-01T00:00:00");
   const monthlyTotals=new Map<string,Map<string,number>>();
   for(const e of expenses){
    const expenseMonth=e.spent_at.slice(0,7);
