@@ -65,7 +65,43 @@ export default function Home() {
  const daily=useMemo(()=>{const map=new Map<string,number>();currentExpenses.forEach(e=>map.set(e.spent_at,(map.get(e.spent_at)||0)+Number(e.amount)));return Array.from(map.entries()).sort((a,b)=>a[0].localeCompare(b[0])).map(([date,total])=>({date:date.slice(5),total}));},[currentExpenses]);
  const byCategory=useMemo(()=>{const map=new Map<string,number>();currentExpenses.forEach(e=>map.set(e.category_name,(map.get(e.category_name)||0)+Number(e.amount)));return Array.from(map.entries()).map(([name,value])=>({name,value})).sort((a,b)=>b.value-a.value);},[currentExpenses]);
  const repeats=useMemo(()=>{const map=new Map<string,{count:number,total:number,qty:number}>();expenses.filter(e=>e.spent_at.startsWith(month)).forEach(e=>{const k=e.item_name.trim().toLowerCase();const v=map.get(k)||{count:0,total:0,qty:0};v.count++;v.total+=Number(e.amount);v.qty+=Number(e.quantity||1);map.set(k,v)});return Array.from(map.entries()).map(([name,v])=>({name:name.replace(/^./,x=>x.toUpperCase()),...v})).filter(x=>x.count>1).sort((a,b)=>b.total-a.total).slice(0,5)},[expenses,month]);
- const budget=useMemo(()=>{const prev=new Date(month+"-01T00:00:00");prev.setMonth(prev.getMonth()-1);const pm=prev.toLocaleDateString("en-CA").slice(0,7);const prior=expenses.filter(e=>e.spent_at.startsWith(pm));const map=new Map<string,number>();prior.forEach(e=>map.set(e.category_name,(map.get(e.category_name)||0)+Number(e.amount)));const total=Array.from(map.values()).reduce((a,b)=>a+b,0);const cap=Math.max(0,salaryNum*0.9);const factor=total>cap&&total>0?cap/total:1;return Array.from(map.entries()).map(([name,value])=>({name,previous:value,planned:Math.round(value*factor)})).sort((a,b)=>b.planned-a.planned)},[expenses,month,salaryNum]);
+ const budget=useMemo(()=>{
+  // Recommend next month's category limits from the most recent 2–6 complete months.
+  // Current selected month is excluded so the forecast is based on history only.
+  const targetStart=new Date(month+"-01T00:00:00");
+  const monthlyTotals=new Map<string,Map<string,number>>();
+  for(const e of expenses){
+   const expenseMonth=e.spent_at.slice(0,7);
+   if(!/^\d{4}-\d{2}$/.test(expenseMonth)||expenseMonth>=month) continue;
+   const byCategory=monthlyTotals.get(expenseMonth)||new Map<string,number>();
+   byCategory.set(e.category_name,(byCategory.get(e.category_name)||0)+Number(e.amount||0));
+   monthlyTotals.set(expenseMonth,byCategory);
+  }
+  const availableMonths=Array.from(monthlyTotals.keys()).sort((a,b)=>b.localeCompare(a)).slice(0,6);
+  const usedMonths=availableMonths.slice(0,6);
+  const categoryNames=new Set<string>();
+  usedMonths.forEach(m=>monthlyTotals.get(m)?.forEach((_v,name)=>categoryNames.add(name)));
+  const averages=Array.from(categoryNames).map(name=>{
+   const monthValues=usedMonths.map(m=>monthlyTotals.get(m)?.get(name)||0);
+   const total=monthValues.reduce((sum,value)=>sum+value,0);
+   return {name,previous:total/Math.max(usedMonths.length,1),historyTotal:total};
+  }).filter(x=>x.historyTotal>0);
+  const historySpend=averages.reduce((sum,x)=>sum+x.previous,0);
+  const salaryCap=Math.max(0,salaryNum*0.9);
+  const factor=historySpend>salaryCap&&historySpend>0?salaryCap/historySpend:1;
+  return averages.map(x=>({
+   name:x.name,
+   previous:x.previous,
+   planned:Math.max(0,Math.round(x.previous*factor)),
+   historyTotal:x.historyTotal
+  })).sort((a,b)=>b.planned-a.planned);
+ },[expenses,month,salaryNum]);
+ const budgetHistoryMonths=useMemo(()=>{
+  return Array.from(new Set(expenses.map(e=>e.spent_at.slice(0,7)).filter(m=>/^\d{4}-\d{2}$/.test(m)&&m<month))).sort((a,b)=>b.localeCompare(a)).slice(0,6);
+ },[expenses,month]);
+ const budgetHistoryReady=budgetHistoryMonths.length>=2;
+ const budgetPlannedTotal=budget.reduce((sum,x)=>sum+x.planned,0);
+
  async function auth(e:React.FormEvent){e.preventDefault();if(!supabase)return;setSaving(true);setError("");const res=signup?await supabase.auth.signUp({email,password}):await supabase.auth.signInWithPassword({email,password});if(res.error)setError(res.error.message);else if(signup&&!res.data.session)setNotice("Check your email to confirm your account, then sign in.");setSaving(false);}
  async function signout(){await supabase?.auth.signOut();setSession(null);}
  async function saveSalary(e:React.FormEvent){e.preventDefault();if(!supabase||!user)return;const n=Number(salaryInput);if(!Number.isFinite(n)||n<0){setError("Enter a valid salary amount.");return;}setSaving(true);const r=await supabase.from("salary_history").insert({user_id:user.id,monthly_salary:n,effective_from:salaryDate,note:salary?"Salary revised":"Initial salary"});if(r.error)setError(r.error.message);else{setNotice("Salary saved.");setSalaryInput("");setShowSalary(false);await load(user.id);}setSaving(false);}
@@ -125,7 +161,7 @@ export default function Home() {
        <div className="panel trend-panel"><div className="panel-heading"><div><h2>Daily spending</h2><p>Recorded spend · {month}</p></div><strong>{daily.length?money(Math.max(...daily.map(x=>x.total))):money(0)} peak</strong></div>{daily.length?<div className="trend-chart"><ResponsiveContainer width="100%" height="100%"><AreaChart data={daily} margin={{top:8,right:8,left:0,bottom:0}}><CartesianGrid stroke="#edf0f2" vertical={false}/><XAxis dataKey="date" tickLine={false} axisLine={false}/><YAxis tickLine={false} axisLine={false} width={52} tickFormatter={(v)=>`₹${v}`}/><Tooltip formatter={(v:any)=>money(Number(v))}/><Area type="monotone" dataKey="total" stroke="#1d5fd6" strokeWidth={2.5} fill="#edf3fc"/></AreaChart></ResponsiveContainer></div>:<div className="empty-state"><CalendarDays size={22}/><p>No daily activity yet.</p></div>}</div>
        <div className="panel repeats-panel"><div className="panel-heading"><div><h2>Repeat purchases</h2><p>More than one entry this month</p></div></div>{repeats.length?<div className="repeat-list">{repeats.map(x=><div key={x.name}><div><strong>{x.name}</strong><span>{x.count} entries · quantity {x.qty}</span></div><strong>{money(x.total)}</strong></div>)}</div>:<div className="empty-state"><Check size={22}/><p>Repeated items will appear here.</p></div>}</div>
       </section>
-      <section id="budget" className="panel budget-section"><div className="panel-heading"><div><h2>Next-month budget suggestion</h2><p>Based on the previous month and a 90% salary planning limit.</p></div></div>{budget.length?<><div className="budget-summary"><div><span>Suggested spend</span><strong>{money(budget.reduce((a,x)=>a+x.planned,0))}</strong></div><div><span>Available for review</span><strong>{money(Math.max(0,salaryNum-budget.reduce((a,x)=>a+x.planned,0)))}</strong></div></div><div className="budget-list">{budget.map(x=><div className="budget-row" key={x.name}><div><strong>{x.name}</strong><span>{money(x.previous)} last month</span></div><strong>{money(x.planned)}</strong><div className="budget-track"><i style={{width:`${Math.max(4,Math.min(100,(x.planned/Math.max(...budget.map(b=>b.planned)))*100))}%`}}/></div></div>)}</div></>:<div className="empty-state"><CircleHelp size={22}/><p>Add a month of expenses to generate a category plan.</p></div>}</section>
+      <section id="budget" className="panel budget-section"><div className="panel-heading"><div><h2>History-based budget planner</h2><p>Uses up to the last 6 months before the selected month. Each category starts from its monthly average, then scales down only if the total exceeds 90% of salary.</p></div><span className="budget-history-badge">{budgetHistoryMonths.length} month{budgetHistoryMonths.length===1?"":"s"} found</span></div>{!budgetHistoryReady&&<div className="budget-history-notice" role="status"><CircleHelp size={17}/><span>At least 2 months of saved expenses are needed for a history-based suggestion. This is a preliminary estimate, not a reliable trend yet.</span></div>}{budget.length?<><div className="budget-summary"><div><span>Suggested monthly budget</span><strong>{money(budgetPlannedTotal)}</strong></div><div><span>Salary left after plan</span><strong>{money(Math.max(0,salaryNum-budgetPlannedTotal))}</strong></div><div><span>History used</span><strong>{budgetHistoryMonths.length} months</strong></div></div><div className="budget-list">{budget.map(x=><div className="budget-row" key={x.name}><div><strong>{x.name}</strong><span>{money(x.previous)} average / month · {money(x.historyTotal)} total in history</span></div><strong>{money(x.planned)}</strong><div className="budget-track"><i style={{width:`${Math.max(4,Math.min(100,(x.planned/Math.max(...budget.map(b=>b.planned),1))*100))}%`}}/></div></div>)}</div><p className="budget-method-note">Method: average by category across the latest {budgetHistoryMonths.length} recorded months (months with no entry count as zero), then apply the 90% salary cap proportionally. Round-offs may create a small difference.</p></>:<div className="empty-state"><CircleHelp size={22}/><p>Add at least 2 months of expenses before a useful budget recommendation can be shown.</p></div>}</section>
       <section id="transactions" className="panel transaction-section"><div className="panel-heading transaction-heading"><div><h2>Recent transactions</h2><p>Newest entries first</p></div><span>{expenses.length} saved</span></div>{expenses.length?<div className="overflow-x-auto"><table><thead><tr><th>Item</th><th>Category</th><th>Date</th><th>Quantity</th><th>Amount</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>{expenses.map(x=><tr key={x.id}><td className="transaction-item"><strong>{x.item_name}</strong>{x.notes&&<span>{x.notes}</span>}</td><td>{x.category_name}</td><td>{new Date(x.spent_at+"T00:00:00").toLocaleDateString("en-IN")}</td><td>{x.quantity}</td><td>{money(Number(x.amount))}</td><td><button className="remove-button" aria-label={`Delete ${x.item_name}`} onClick={()=>removeExpense(x.id)}><X size={15}/></button></td></tr>)}</tbody></table></div>:<div className="empty-state table-empty"><Wallet size={22}/><p>No transactions saved yet.</p></div>}</section>
      </>}
      <footer><span>Salary Smart Budget · Your money stays yours.</span><span><ShieldCheck size={14}/> Supabase authentication · Row-level security</span></footer>
