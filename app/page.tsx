@@ -190,6 +190,7 @@ export default function Home() {
         ]:[
          {name:"Broad-market index mutual fund",risk:"High",horizon:"5–10+ years",returnText:"Market-linked; no guaranteed return",detail:"A low-cost diversified index fund can be a simple equity starting point, but value can fall sharply and recovery may take years.",tag:"Long-term only"}
         ]).filter(option=>{
+         if(investmentRisk==="high") return true;
          if(investmentHorizon==="0.5") return /RD|FD|Post Office|liquid|safety bucket/i.test(option.name);
          if(investmentHorizon==="2") return !/Broad-market index/i.test(option.name) && !/liquid mutual fund/i.test(option.name);
          if(investmentHorizon==="5") return !/Broad-market index|liquid mutual fund/i.test(option.name);
