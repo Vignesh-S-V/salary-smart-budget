@@ -54,7 +54,10 @@ export default function Home() {
  const [salaryInput,setSalaryInput]=useState(""),[salaryDate,setSalaryDate]=useState(today()),[showSalary,setShowSalary]=useState(false);
  const [item,setItem]=useState(""),[amount,setAmount]=useState(""),[qty,setQty]=useState("1"),[category,setCategory]=useState("Groceries"),[spentAt,setSpentAt]=useState(today()),[notes,setNotes]=useState("");
  const [categories,setCategories]=useState<string[]>(CATEGORIES),[newCategory,setNewCategory]=useState("");
- const [categoryManuallySelected,setCategoryManuallySelected]=useState(false);\n const [investmentAmountInput,setInvestmentAmountInput]=useState("");\n const [investmentHorizon,setInvestmentHorizon]=useState("3");\n const [investmentRisk,setInvestmentRisk]=useState("low");
+ const [categoryManuallySelected,setCategoryManuallySelected]=useState(false);
+ const [investmentAmountInput,setInvestmentAmountInput]=useState("");
+ const [investmentHorizon,setInvestmentHorizon]=useState("5");
+ const [investmentRisk,setInvestmentRisk]=useState("low");
  const [loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[error,setError]=useState(""),[notice,setNotice]=useState(""),[month,setMonth]=useState(today().slice(0,7));
  const loadedUserId=useRef<string|null>(null);
  const user=session?.user;
