@@ -1,4 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-export const supabase = url && key ? createClient(url, key, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } }) : null;
+
+const publicUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://ssgbabvtmijhkrqgyrmp.supabase.co';
+const publicKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_GdSS1_BZfcPiM4LijEmiWQ_eotgebIP';
+
+export const supabase = createClient(publicUrl, publicKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+  },
+});

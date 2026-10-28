@@ -29,8 +29,11 @@ jobs:
       - name: Build static site
         run: npm run build
         env:
-          NEXT_PUBLIC_SUPABASE_URL: https://ssgbabvtmijhkrqgyrmp.supabase.co
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: sb_publishable_GdSS1_BZfcPiM4LijEmiWQ_eotgebIP
+          GITHUB_PAGES: "true"
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      - name: Disable Jekyll for Next.js assets
+        run: touch out/.nojekyll
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Upload Pages artifact
