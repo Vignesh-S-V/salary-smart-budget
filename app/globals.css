@@ -225,3 +225,10 @@ dashboard-content footer, .dashboard-content footer { min-height: 54px; display:
   .dashboard-content footer { min-height: 72px; align-items: flex-start; flex-direction: column; justify-content: center; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
+
+/* History-based budget planner additions */
+.budget-history-badge { flex: 0 0 auto; border: 1px solid var(--border); border-radius: 999px; padding: 6px 10px; color: var(--muted); background: var(--surface); font-size: 12px; font-weight: 650; }
+.budget-history-notice { display: flex; align-items: flex-start; gap: 10px; margin: 16px 0; padding: 12px 14px; border: 1px solid #f1d49a; border-radius: 12px; background: #fff9e9; color: #795b20; font-size: 13px; line-height: 1.5; }
+.budget-history-notice svg { flex: 0 0 auto; margin-top: 1px; }
+.budget-method-note { margin: 14px 0 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
+@media (max-width: 640px) { .budget-history-badge { margin-top: 4px; } }
