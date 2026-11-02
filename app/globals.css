@@ -98,6 +98,18 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .kpi .salary-actions button:disabled { color: rgba(255,255,255,.55); }
 .kpi-primary { background: linear-gradient(135deg,#7c3aed,#5521a8); }
 .kpi-primary > strong { color: #fff; }
+/* Enforce readable contrast on all four coloured overview KPI cards. */
+.kpi > span,
+.kpi > strong,
+.kpi > p,
+.kpi .salary-actions button,
+.kpi .salary-actions button:disabled {
+  color: #fff !important;
+}
+.kpi > span { opacity: 1; font-weight: 750; }
+.kpi > p { color: rgba(255,255,255,.9) !important; }
+.kpi .salary-actions button { color: #fff !important; text-decoration-color: rgba(255,255,255,.9); }
+.kpi .salary-actions button:disabled { opacity: .65; }
 .salary-actions { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 12px; }
 .salary-actions button { padding: 0; border: 0; background: transparent; color: var(--accent); font-size: 12px; font-weight: 800; text-decoration: underline; text-underline-offset: 3px; }
 .salary-actions button:disabled { cursor: not-allowed; color: var(--muted); opacity: .55; text-decoration: none; }
