@@ -155,6 +155,24 @@ export default function Home() {
  async function saveSalary(e:React.FormEvent){e.preventDefault();if(!supabase||!user)return;const n=Number(salaryInput);if(!Number.isFinite(n)||n<0){setError("Enter a valid salary amount.");return;}setSaving(true);const note=salaryAction==="change"?"Salary revised":salary?"Salary added":"Initial salary";const r=await supabase.from("salary_history").insert({user_id:user.id,monthly_salary:n,effective_from:salaryDate,note});if(r.error)setError(r.error.message);else{setNotice("Salary saved.");setSalaryInput("");setShowSalary(false);await load(user.id);}setSaving(false);}
  async function saveExpense(e:React.FormEvent){e.preventDefault();if(!supabase||!user)return;const n=Number(amount),q=Number(qty);if(!item.trim()||!Number.isFinite(n)||n<=0||!Number.isFinite(q)||q<=0){setError("Enter an item, positive amount and quantity.");return;}setSaving(true);const suggestion=categorySuggestion(item);let cat=categoryManuallySelected?category:suggestion.matched?suggestion.category:category;const cr=await supabase.from("expense_categories").upsert({user_id:user.id,name:cat},{onConflict:"user_id,name"}).select("id").single();const r=await supabase.from("expenses").insert({user_id:user.id,item_name:item.trim(),amount:n,quantity:q,category_id:cr.data?.id||null,category_name:cat,spent_at:spentAt,notes:notes.trim()||null});if(cr.error||r.error)setError(cr.error?.message||r.error?.message||"Unable to save expense.");else{setNotice(item+" saved · "+money(n)+" deducted from your balance.");setItem("");setAmount("");setQty("1");setNotes("");setCategoryManuallySelected(false);setCategory("Groceries");await load(user.id);}setSaving(false);}
  async function removeExpense(id:string){if(!supabase||!user)return;const r=await supabase.from("expenses").delete().eq("id",id).eq("user_id",user.id);if(r.error)setError(r.error.message);else await load(user.id);}
+ async function clearAllTransactions(){
+  if(!supabase||!user||expenses.length===0)return;
+  const confirmed=window.confirm(`Permanently delete ALL ${expenses.length} transactions from your account? Salary, budgets, loans, savings goals and other profile data will not be changed.`);
+  if(!confirmed)return;
+  const phrase=window.prompt('Type CLEAR to permanently delete all your transactions.');
+  if(phrase!=="CLEAR"){setNotice("Clear cancelled. No transactions were deleted.");return;}
+  setSaving(true);setError("");setNotice("");
+  try{
+   const {data:{user:verified},error:authError}=await supabase.auth.getUser();
+   if(authError||!verified||verified.id!==user.id)throw new Error("Login verification failed. Sign in again.");
+   const {error:deleteError}=await supabase.from("expenses").delete({count:"exact"}).eq("user_id",verified.id);
+   if(deleteError)throw deleteError;
+   setExpenses([]);
+   await load(verified.id);
+   setNotice("All transactions in your account have been deleted. Other finance data was left unchanged.");
+  }catch(e){setError(e instanceof Error?e.message:"Could not clear transactions.");}
+  finally{setSaving(false);}
+ }
  async function addCategory(e:React.FormEvent){e.preventDefault();if(!supabase||!user||!newCategory.trim())return;const name=newCategory.trim();const r=await supabase.from("expense_categories").upsert({user_id:user.id,name},{onConflict:"user_id,name"});if(r.error)setError(r.error.message);else{setCategories(prev=>[...new Set([...prev,name])]);setCategory(name);setCategoryManuallySelected(true);setNewCategory("");setNotice("Category added.");}}
  if(!user)return (
    <main className="auth-shell">
@@ -283,7 +301,7 @@ export default function Home() {
       </>}
       {activeSection==="import-statement"&&<StatementImport userId={user.id} onImported={()=>load(user.id)}/>}
       {activeSection==="transactions"&&<>
-<section id="transactions" className="panel transaction-section"><div className="panel-heading transaction-heading"><div><h2>Recent transactions</h2><p>Newest entries first</p></div><span>{expenses.length} saved</span></div>{expenses.length?<div className="overflow-x-auto"><table><thead><tr><th>Item</th><th>Category</th><th>Date</th><th>Quantity</th><th>Amount</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>{expenses.map(x=><tr key={x.id}><td className="transaction-item"><strong>{x.item_name}</strong>{x.notes&&<span>{x.notes}</span>}</td><td>{x.category_name}</td><td>{new Date(x.spent_at+"T00:00:00").toLocaleDateString("en-IN")}</td><td>{x.quantity}</td><td>{money(Number(x.amount))}</td><td><button className="remove-button" aria-label={`Delete ${x.item_name}`} onClick={()=>removeExpense(x.id)}><X size={15}/></button></td></tr>)}</tbody></table></div>:<div className="empty-state table-empty"><Wallet size={22}/><p>No transactions saved yet.</p></div>}</section>
+<section id="transactions" className="panel transaction-section"><div className="panel-heading transaction-heading"><div><h2>Recent transactions</h2><p>Newest entries first</p></div><div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}><span>{expenses.length} saved</span><button type="button" className="remove-button" disabled={!expenses.length||saving} onClick={clearAllTransactions} style={{width:"auto",padding:"8px 14px",color:"#b42318",border:"1px solid #f0b7b2",borderRadius:8,fontWeight:600}}>{saving?"Clearing…":"Clear all transactions"}</button></div></div>{error&&<p role="alert" className="state-error">{error}</p>}{notice&&<p role="status" className="state-success">{notice}</p>}{expenses.length?<div className="overflow-x-auto"><table><thead><tr><th>Item</th><th>Category</th><th>Date</th><th>Quantity</th><th>Amount</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>{expenses.map(x=><tr key={x.id}><td className="transaction-item"><strong>{x.item_name}</strong>{x.notes&&<span>{x.notes}</span>}</td><td>{x.category_name}</td><td>{new Date(x.spent_at+"T00:00:00").toLocaleDateString("en-IN")}</td><td>{x.quantity}</td><td>{money(Number(x.amount))}</td><td><button className="remove-button" aria-label={`Delete ${x.item_name}`} onClick={()=>removeExpense(x.id)}><X size={15}/></button></td></tr>)}</tbody></table></div>:<div className="empty-state table-empty"><Wallet size={22}/><p>No transactions saved yet.</p></div>}</section>
       </>}     </>}
      <footer><span>Salary Smart Budget · Your money stays yours.</span><span><ShieldCheck size={14}/> Supabase authentication · Row-level security</span></footer>
     </div>
