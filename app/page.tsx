@@ -69,6 +69,8 @@ export default function Home() {
  const salaryNum=Number(salary?.monthly_salary||0), balance=salaryNum-monthTotal;
  const daily=useMemo(()=>{const map=new Map<string,number>();currentExpenses.forEach(e=>map.set(e.spent_at,(map.get(e.spent_at)||0)+Number(e.amount)));return Array.from(map.entries()).sort((a,b)=>a[0].localeCompare(b[0])).map(([date,total])=>({date:date.slice(5),total}));},[currentExpenses]);
  const byCategory=useMemo(()=>{const map=new Map<string,number>();currentExpenses.forEach(e=>map.set(e.category_name,(map.get(e.category_name)||0)+Number(e.amount)));return Array.from(map.entries()).map(([name,value])=>({name,value})).sort((a,b)=>b.value-a.value);},[currentExpenses]);
+
+ const repeats=useMemo(()=>{const map=new Map<string,{count:number,total:number,qty:number}>();expenses.filter(e=>e.spent_at.startsWith(month)).forEach(e=>{const k=e.item_name.trim().toLowerCase();const v=map.get(k)||{count:0,total:0,qty:0};v.count++;v.total+=Number(e.amount);v.qty+=Number(e.quantity||1);map.set(k,v)});return Array.from(map.entries()).map(([name,v])=>({name:name.replace(/^./,x=>x.toUpperCase()),...v})).filter(x=>x.count>1).sort((a,b)=>b.total-a.total).slice(0,5)},[expenses,month]);
  const financeReview=useMemo(()=>{
   const expenseRatio=salaryNum>0?(monthTotal/salaryNum)*100:null;
   const topCategory=byCategory[0]||null;
@@ -110,7 +112,6 @@ export default function Home() {
   if(!currentExpenses.length) observations.push("No expenses have been entered for this month yet. This review will become more useful as transactions are recorded.");
   return {expenseRatio,topCategory,savingsTarget,affordableSavings,observations,actions};
  },[salaryNum,monthTotal,balance,byCategory,repeats,salaryHistory.length,currentExpenses.length]);
- const repeats=useMemo(()=>{const map=new Map<string,{count:number,total:number,qty:number}>();expenses.filter(e=>e.spent_at.startsWith(month)).forEach(e=>{const k=e.item_name.trim().toLowerCase();const v=map.get(k)||{count:0,total:0,qty:0};v.count++;v.total+=Number(e.amount);v.qty+=Number(e.quantity||1);map.set(k,v)});return Array.from(map.entries()).map(([name,v])=>({name:name.replace(/^./,x=>x.toUpperCase()),...v})).filter(x=>x.count>1).sort((a,b)=>b.total-a.total).slice(0,5)},[expenses,month]);
  const budget=useMemo(()=>{
   // Recommend next month's category limits from the most recent 2–6 complete months.
   // Current selected month is excluded so the forecast is based on history only.
