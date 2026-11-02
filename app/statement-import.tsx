@@ -75,7 +75,7 @@ function parseRows(rows:unknown[][]):Tx[] {
    if(debit<0&&credit<0&&amount>=0){const a=num(row[amount]);const raw=String(row[amount]??""); if(/\b(cr|credit)\b/i.test(raw))c=a;else d=a;}
    if(!date||!description||(!d&&!c))continue;
    const direction=c>0&&d===0?"credit":"debit", value=direction==="credit"?c:d;
-   out.push({date,description,amount:value,direction,category:category(description),confidence:di>=0&&desc>=0&&(debit>=0||credit>=0)?"high":"review"});
+   out.push({date,description,amount:value,direction,category:category(description),confidence:di>=0&&desc>=0&&(debit>=0||credit>=0)&&categorySuggestion(description).matched?"high":"review"});
  }
  return out;
 }
@@ -130,11 +130,11 @@ async function parsePdf(file:File):Promise<Tx[]> {
    if(normalizedDate && particulars && (deposit>0||withdrawal>0)){
     const direction=deposit>0&&withdrawal===0?"credit":"debit";
     const amount=direction==="credit"?deposit:withdrawal;
-    last={date:normalizedDate,description:particulars,amount,direction,category:category(particulars),confidence:"high"};
+    last={date:normalizedDate,description:particulars,amount,direction,category:category(particulars),confidence:categorySuggestion(particulars).matched?"high":"review"};
     transactions.push(last);
    } else if(last && !normalizedDate && particulars && !deposit && !withdrawal && !/opening balance/i.test(particulars)){
     // Join wrapped narration lines belonging to the preceding dated transaction.
-    last.description=(last.description+" "+particulars).trim();
+    last.description=(last.description+" "+particulars).trim();\n    last.category=category(last.description);\n    last.confidence=categorySuggestion(last.description).matched?"high":"review";
    }
   }
  }
