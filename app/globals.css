@@ -100,6 +100,19 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .salary-form { display: grid; grid-template-columns: 1fr 1fr auto; align-items: end; gap: 12px; }
 .salary-form label { min-width: 0; }
 .salary-form label { font-size: 13px; }
+.finance-report { margin: 0 0 16px; padding: 18px; }
+.finance-report-metrics { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 10px; margin: 16px 0; }
+.finance-report-metrics > div { min-width: 0; padding: 13px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); }
+.finance-report-metrics span, .finance-report-savings span { display: block; color: var(--muted); font-size: 12px; }
+.finance-report-metrics strong { display: block; margin-top: 7px; font-size: 18px; overflow-wrap: anywhere; }
+.finance-report-body { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; margin-top: 18px; }
+.finance-report-body h3 { margin: 0 0 10px; font-size: 14px; }
+.finance-report-body ul, .finance-report-body ol { margin: 0; padding-left: 20px; color: var(--text); }
+.finance-report-body li { margin: 0 0 8px; line-height: 1.5; font-size: 13px; }
+.finance-report-body p { color: var(--muted); font-size: 13px; }
+.finance-report-savings { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 18px; margin-top: 18px; padding: 13px; border-radius: 7px; background: var(--accent-soft); }
+.finance-report-savings strong { font-size: 17px; }
+.finance-report-note { margin: 14px 0 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
 
 .expense-grid { display: grid; grid-template-columns: minmax(0, 1.12fr) minmax(320px, .88fr); gap: 16px; margin-bottom: 16px; }
 .expense-form-panel, .category-panel { padding: 18px; }
