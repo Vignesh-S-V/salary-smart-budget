@@ -34,7 +34,7 @@ function categorySuggestion(item:string) {
  // Strong financial intent is resolved before restaurant and general expense words.
  if(tokenPhrase(["loan","loans","emi"]) || /\b(loan|emi)\b/.test(normalized))
   return {category:"Loan",matched:true,examples:"personal loan, gold loan, home loan, car loan EMI"};
- if(tokenPhrase(["credit card bill","credit card payment","rent","electricity bill","electricity","current bill","water bill","internet bill","wifi bill","recharge","insurance premium","gas bill","mobile bill","phone bill","subscription","dth","d h tv","dish tv","tata play","sun direct","airtel digital tv","videocon d2h","tv recharge","tv bill"]) || /\\b(dth|d\\s*h)\\s*(tv)?\\b/.test(normalized))
+ if(tokenPhrase(["credit card bill","credit card payment","rent","electricity bill","electricity","current bill","water bill","internet bill","wifi bill","recharge","insurance premium","gas bill","mobile bill","phone bill","subscription","dth","d2h","d h tv","dish tv","tata play","sun direct","airtel digital tv","videocon d2h","tv recharge","tv bill"]) || /\\b(dth|d\\s*h)\\s*(tv)?\\b/.test(normalized))
   return {category:"Bills",matched:true,examples:"credit card bill, electricity, DTH/TV recharge, Tata Play, rent"};
  if(tokenPhrase(["sip","crt sip","crt","mutual fund","mutual funds","stock","stocks","share","shares","share market","stock market","investment","investments","recurring deposit","fixed deposit","gold savings","gold scheme","chit fund","nps","ppf","elss","index fund","equity fund","nifty","sensex","ppf","epf","rd","fd"]))
   return {category:"Investment & Savings",matched:true,examples:"SIP, CRT SIP, mutual funds, stocks, savings deposits"};
