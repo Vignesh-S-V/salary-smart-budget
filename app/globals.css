@@ -87,6 +87,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .kpi > strong { display: block; margin-top: 10px; font-size: 24px; line-height: 1.15; letter-spacing: -.025em; overflow-wrap: anywhere; }
 .kpi > p { margin: 10px 0 0; color: var(--muted); font-size: 12px; }
 .kpi > button { margin-top: 12px; padding: 0; border: 0; background: transparent; color: var(--accent); font-size: 12px; font-weight: 800; text-decoration: underline; text-underline-offset: 3px; }
+.salary-actions { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 12px; }
+.salary-actions button { padding: 0; border: 0; background: transparent; color: var(--accent); font-size: 12px; font-weight: 800; text-decoration: underline; text-underline-offset: 3px; }
+.salary-actions button:disabled { cursor: not-allowed; color: var(--muted); opacity: .55; text-decoration: none; }
 .kpi-primary { background: #f8fafc; }
 .kpi-primary > strong { color: var(--accent); font-size: 28px; }
 .panel-heading { min-height: 50px; display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
