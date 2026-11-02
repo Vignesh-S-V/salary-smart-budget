@@ -21,7 +21,7 @@ export default function FinanceModules({section,userId,salary,expenses,month}:Pr
  const [lender,setLender]=useState(""),[loanType,setLoanType]=useState("Personal"),[principal,setPrincipal]=useState(""),[outstanding,setOutstanding]=useState(""),[rate,setRate]=useState(""),[emi,setEmi]=useState(""),[loanDue,setLoanDue]=useState("");
  const [goalName,setGoalName]=useState(""),[goalTarget,setGoalTarget]=useState(""),[goalSaved,setGoalSaved]=useState("0"),[goalDate,setGoalDate]=useState("");
  const [worthType,setWorthType]=useState<"asset"|"liability">("asset"),[worthName,setWorthName]=useState(""),[worthValue,setWorthValue]=useState("");
- const [aiQuestion,setAiQuestion]=useState(""); const [aiAnswer,setAiAnswer]=useState("");
+ const [aiQuestion,setAiQuestion]=useState(""); const [aiAnswer,setAiAnswer]=useState(""); const [aiLoading,setAiLoading]=useState(false);
  const refresh=useCallback(async()=>{
   setLoading(true);setError("");
   const [b,rb,l,g,w]=await Promise.all([
@@ -61,31 +61,20 @@ export default function FinanceModules({section,userId,salary,expenses,month}:Pr
  if(salary>0)healthInputs.push(emiTotal/salary<=.2?25:emiTotal/salary<=.35?16:5);
  if(emergencyMonths!==null)healthInputs.push(emergencyMonths>=6?25:emergencyMonths>=3?19:emergencyMonths>=1?12:4);
  const healthScore=healthInputs.length>=3?Math.round(healthInputs.reduce((s,x)=>s+x,0)/healthInputs.length*4):null;
- function answerFinanceQuestion(raw:string){
-  const q=raw.toLowerCase();
-  const categoryTotals=[...actual.entries()].sort((a,b)=>b[1]-a[1]);
-  if(/highest|most|more|where|category|spend|spent|செலவு/.test(q)){
-   if(!categoryTotals.length)return "இந்த மாதத்திற்கான expense records கிடைக்கவில்லை. முதலில் Add Expense ribbon-ல் செலவுகளைப் பதிவு செய்.";
-   const [name,value]=categoryTotals[0];return "இந்த மாதம் அதிகம் செலவான category: "+name+" — "+money(value)+". "+(monthSpend>0?"இது மொத்த செலவின் "+(value/monthSpend*100).toFixed(1)+"% ஆகும்.":"");
-  }
-  if(/save|saving|savings|மிச்சம்|சேம/.test(q)){
-   if(!salary)return "Salary record இல்லை. Salary section-ல் monthly salary பதிவு செய்த பிறகே savings rate கணக்கிட முடியும்.";
-   return "இந்த மாத salary "+money(salary)+"; recorded expenses "+money(monthSpend)+"; மீதமுள்ள தொகை "+money(savingsAmount)+". Savings rate "+savingsRate!.toFixed(1)+"%. இது recorded expenses அடிப்படையிலான கணக்கு; bank balance அல்ல.";
-  }
-  if(/loan|emi|debt|கடன்/.test(q)){
-   if(!loanStrategy.length)return "Loan Manager-ல் active loan records இல்லை. Loan details சேர்த்தால் interest-rate அடிப்படையில் repayment priority காட்ட முடியும்.";
-   const first=loanStrategy[0];return "அதிக interest rate கொண்ட loan: "+first.lender+" ("+Number(first.annual_interest_rate).toFixed(2)+"% APR), outstanding "+money(Number(first.outstanding_balance))+". Extra repayment-ஐ முதலில் இதற்கு செலுத்துவது interest குறைக்க உதவலாம்; ஆனால் prepayment fees மற்றும் loan terms சரிபார்.";
-  }
-  if(/bill|due|upcoming|payment|வரும்|கட்ட/.test(q)){
-   if(!upcomingItems.length)return "அடுத்த 30 நாட்களில் due ஆகும் bill அல்லது EMI schedule இல்லை. Recurring Bills மற்றும் Loan Manager-ல் due dates சரியாக உள்ளனவா சரிபார்.";
-   return "அடுத்த 30 நாட்களில் "+upcomingItems.length+" payment(s) உள்ளன: "+upcomingItems.map(x=>x.name+" — "+money(x.amount)+" ("+x.date+")").join("; ")+". மொத்தம் "+money(upcomingItems.reduce((s,x)=>s+x.amount,0))+".";
-  }
-  if(/emergency|fund|அவசர/.test(q)){
-   if(emergencyMonths===null)return "Emergency fund coverage கணக்கிட, Net Worth Tracker-ல் Cash / Bank / Savings போன்ற liquid assets-ஐ பதிவு செய்.";
-   return "பதிவு செய்யப்பட்ட liquid assets "+money(liquidAssets)+". மதிப்பிடப்பட்ட monthly essential outflow "+money(essentialMonthly)+". Emergency fund coverage சுமார் "+emergencyMonths.toFixed(1)+" மாதங்கள். Asset பெயர் அடிப்படையில் liquid funds கணக்கிடப்படுகின்றன; பெயர்களைத் தெளிவாக உள்ளிடு.";
-  }
-  if(/net worth|asset|liabilit|சொத்து/.test(q))return "பதிவு செய்யப்பட்ட assets "+money(assets)+", liabilities "+money(manualDebt+loanBalance)+". தற்போதைய recorded net worth "+money(netWorth)+". முழுமையான மதிப்பீட்டுக்கு எல்லா assets மற்றும் liabilities-ஐ பதிவு செய்.";
-  return "நான் தற்போது உன் சேமித்த financial records-ஐ அடிப்படையாகக் கொண்ட கேள்விகளுக்கு பதிலளிக்கிறேன். உதாரணம்: அதிகம் செலவான category எது? எவ்வளவு சேமித்தேன்? எந்த loan-ஐ முதலில் அடைக்கலாம்? அடுத்த 30 நாட்களில் என்ன bills உள்ளன?";
+ async function askGemini(e:FormEvent){
+  e.preventDefault();
+  const question=aiQuestion.trim();
+  if(!question||aiLoading)return;
+  setAiLoading(true);setError("");setAiAnswer("");
+  try{
+   const {data,error:invokeError}=await supabase.functions.invoke("gemini-finance",{body:{question,month}});
+   if(invokeError)throw invokeError;
+   if(data?.error)throw new Error(data.error);
+   if(typeof data?.answer!=="string"||!data.answer.trim())throw new Error("Gemini returned an empty answer. Try rephrasing your question.");
+   setAiAnswer(data.answer);
+  }catch(err){
+   setError(err instanceof Error?err.message:"Unable to get an AI answer. Please retry.");
+  }finally{setAiLoading(false)}
  }
  const insights:string[]=[];
  if(!salary)insights.push("Add a salary record before using salary-based affordability estimates.");
@@ -127,7 +116,7 @@ export default function FinanceModules({section,userId,salary,expenses,month}:Pr
    <section className="finance-command-panel"><div className="finance-section-heading"><h3>Loan repayment strategy</h3><span>Highest interest first</span></div>{loanStrategy.length?loanStrategy.map((x,i)=><div className="module-row" key={x.id}><div className="module-row-main"><strong>{i+1}. {x.lender} · {Number(x.annual_interest_rate).toFixed(2)}% APR</strong><span>Outstanding {money(Number(x.outstanding_balance))} · Estimated monthly interest {money(Number(x.outstanding_balance)*Number(x.annual_interest_rate)/1200)} · EMI {money(Number(x.emi_amount))}</span></div>{i===0&&<span className="finance-tag">Priority</span>}</div>):<p className="empty-state">Add loans to compare interest rates and repayment priorities.</p>}<p className="module-help">Avalanche ordering uses APR only. Check prepayment charges, tax treatment and lender terms before making extra payments.</p></section>
    <section className="finance-command-panel"><div className="finance-section-heading"><h3>Upcoming bills & EMI</h3><span>Next 30 days</span></div>{upcomingItems.length?upcomingItems.map(x=><div className="module-row" key={x.id}><div className="module-row-main"><strong>{x.name} · {money(x.amount)}</strong><span>{x.type} · Due {x.date}</span></div></div>):<p className="empty-state">No bills or EMI due in the next 30 days based on the dates entered.</p>}</section>
    <section className="finance-command-panel"><h3>Personalized financial recommendations</h3><div className="module-list">{insights.map((x,i)=><div className="module-row" key={i}><strong>{i+1}</strong><div className="module-row-main"><span>{x}</span></div></div>)}</div><p className="module-help">Recommendations use available records only; missing data is identified rather than guessed.</p></section>
-   <section className="finance-command-panel"><h3>Ask AI · Finance Q&A</h3><form className="finance-ask-form" onSubmit={e=>{e.preventDefault();setAiAnswer(answerFinanceQuestion(aiQuestion));}}><input className="field" value={aiQuestion} onChange={e=>setAiQuestion(e.target.value)} placeholder="E.g. Which category did I spend most on?" aria-label="Ask a finance question"/><button className="btn btn-primary" type="submit" disabled={!aiQuestion.trim()}>Ask</button></form>{aiAnswer&&<div className="finance-ai-answer" role="status"><strong>Based on your saved records</strong><p>{aiAnswer}</p></div>}<p className="module-help">This version answers using transparent local rules and your saved records. It is not connected to a generative AI model, and does not send financial data to an external provider.</p></section>
+   <section className="finance-command-panel"><h3>Ask Gemini · Finance AI</h3><form className="finance-ask-form" onSubmit={askGemini}><input className="field" value={aiQuestion} onChange={e=>setAiQuestion(e.target.value)} placeholder="E.g. Which loan should I repay first and why?" aria-label="Ask a finance question" maxLength={1000}/><button className="btn btn-primary" type="submit" disabled={!aiQuestion.trim()||aiLoading}>{aiLoading?"Thinking…":"Ask Gemini"}</button></form>{aiAnswer&&<div className="finance-ai-answer" role="status"><strong>Gemini answer · Based on your saved finance records</strong><p>{aiAnswer}</p></div>}<p className="module-help">Gemini 3.8 Flash analyses your authenticated finance summaries (up to the last 24 months of expense history) to answer. Your API key stays in Supabase Function Secrets; your question and relevant financial summaries are sent to Google Gemini. AI responses can be wrong—verify calculations before making financial decisions.</p></section>
   </>}
  </section>;
 }
