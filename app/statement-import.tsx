@@ -134,7 +134,9 @@ async function parsePdf(file:File):Promise<Tx[]> {
     transactions.push(last);
    } else if(last && !normalizedDate && particulars && !deposit && !withdrawal && !/opening balance/i.test(particulars)){
     // Join wrapped narration lines belonging to the preceding dated transaction.
-    last.description=(last.description+" "+particulars).trim();\n    last.category=category(last.description);\n    last.confidence=categorySuggestion(last.description).matched?"high":"review";
+    last.description=(last.description+" "+particulars).trim();
+    last.category=category(last.description);
+    last.confidence=categorySuggestion(last.description).matched?"high":"review";
    }
   }
  }
