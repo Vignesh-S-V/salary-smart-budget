@@ -89,6 +89,8 @@ export default function FinanceModules({section,userId,salary,expenses,month}:Pr
   e.preventDefault();
   const question=aiQuestion.trim();
   if(!question||aiLoading)return;
+  const instant=instantFinanceAnswer(question);
+  if(instant){setAiAnswer(instant);setError("");return;}
   setAiLoading(true);setError("");setAiAnswer("");
   try{
    const {data,error:invokeError}=await supabase.functions.invoke("gemini-finance",{body:{question,month}});
