@@ -69,6 +69,47 @@ export default function Home() {
  const salaryNum=Number(salary?.monthly_salary||0), balance=salaryNum-monthTotal;
  const daily=useMemo(()=>{const map=new Map<string,number>();currentExpenses.forEach(e=>map.set(e.spent_at,(map.get(e.spent_at)||0)+Number(e.amount)));return Array.from(map.entries()).sort((a,b)=>a[0].localeCompare(b[0])).map(([date,total])=>({date:date.slice(5),total}));},[currentExpenses]);
  const byCategory=useMemo(()=>{const map=new Map<string,number>();currentExpenses.forEach(e=>map.set(e.category_name,(map.get(e.category_name)||0)+Number(e.amount)));return Array.from(map.entries()).map(([name,value])=>({name,value})).sort((a,b)=>b.value-a.value);},[currentExpenses]);
+ const financeReview=useMemo(()=>{
+  const expenseRatio=salaryNum>0?(monthTotal/salaryNum)*100:null;
+  const topCategory=byCategory[0]||null;
+  const savingsTarget=salaryNum>0?salaryNum*0.1:0;
+  const availableSurplus=Math.max(0,balance);
+  const affordableSavings=Math.min(savingsTarget,availableSurplus);
+  const observations:string[]=[];
+  const actions:string[]=[];
+  if(!salaryNum) observations.push("A monthly salary has not been recorded, so income-based ratios and a savings estimate cannot be calculated.");
+  else if(balance<0){
+   observations.push(`Recorded expenses exceed the monthly salary by ${money(Math.abs(balance))}.`);
+   actions.push("Review optional spending first and avoid treating credit or borrowed money as available income.");
+  }else if(expenseRatio!==null&&expenseRatio>=90){
+   observations.push(`${expenseRatio.toFixed(1)}% of the recorded monthly salary has been spent. The remaining margin is tight.`);
+   actions.push("Set a weekly spending limit for the rest of the month and pause non-essential purchases until the next salary.");
+  }else if(expenseRatio!==null&&expenseRatio>=70){
+   observations.push(`${expenseRatio.toFixed(1)}% of the recorded monthly salary has been spent. Monitor the remaining balance carefully.`);
+   actions.push("Track weekly spending and move a realistic amount into savings before discretionary purchases.");
+  }else if(salaryNum>0){
+   observations.push(`${(100-(expenseRatio||0)).toFixed(1)}% of the recorded monthly salary remains after the expenses entered so far.`);
+   actions.push("Keep the remaining balance for upcoming bills and essentials; transfer only the amount you can genuinely leave untouched into savings.");
+  }
+  if(topCategory){
+   const share=monthTotal>0?(topCategory.value/monthTotal)*100:0;
+   observations.push(`${topCategory.name} is the largest recorded spending category at ${money(topCategory.value)} (${share.toFixed(1)}% of this month's expenses).`);
+   if(["Shopping","Entertainment","Food & Drinks"].includes(topCategory.name))
+    actions.push(`Check whether ${topCategory.name.toLowerCase()} spending can be reduced next month; even a small limit may improve your surplus.`);
+   else
+    actions.push(`Review the ${topCategory.name.toLowerCase()} entries for avoidable or duplicate payments before changing this category's budget.`);
+  }
+  if(repeats.length){
+   const frequent=repeats[0];
+   observations.push(`${frequent.name} appears ${frequent.count} times this month, totalling ${money(frequent.total)}.`);
+   actions.push(`Set a monthly cap for repeated purchases such as ${frequent.name.toLowerCase()} and compare the total at month-end.`);
+  }
+  if(salaryHistory.length>1){
+   observations.push(`${salaryHistory.length} salary records are saved. The dashboard uses the latest effective salary for this review.`);
+  }
+  if(!currentExpenses.length) observations.push("No expenses have been entered for this month yet. This review will become more useful as transactions are recorded.");
+  return {expenseRatio,topCategory,savingsTarget,affordableSavings,observations,actions};
+ },[salaryNum,monthTotal,balance,byCategory,repeats,salaryHistory.length,currentExpenses.length]);
  const repeats=useMemo(()=>{const map=new Map<string,{count:number,total:number,qty:number}>();expenses.filter(e=>e.spent_at.startsWith(month)).forEach(e=>{const k=e.item_name.trim().toLowerCase();const v=map.get(k)||{count:0,total:0,qty:0};v.count++;v.total+=Number(e.amount);v.qty+=Number(e.quantity||1);map.set(k,v)});return Array.from(map.entries()).map(([name,v])=>({name:name.replace(/^./,x=>x.toUpperCase()),...v})).filter(x=>x.count>1).sort((a,b)=>b.total-a.total).slice(0,5)},[expenses,month]);
  const budget=useMemo(()=>{
   // Recommend next month's category limits from the most recent 2–6 complete months.
@@ -135,13 +176,13 @@ export default function Home() {
    <aside className="dashboard-sidebar">
     <div className="sidebar-brand"><div className="brand-mark" aria-hidden="true">S</div><div><strong>Salary Smart</strong><span>Personal ledger</span></div></div>
     <nav className="dashboard-nav" aria-label="Dashboard sections">
-     <a href="#overview">Overview</a><a href="#add-expense">Add expense</a><a href="#insights">Spending</a><a href="#budget">Budget plan</a><a href="#investments">Investments</a><a href="#transactions">Transactions</a>
+     <a href="#overview">Overview</a><a href="#add-expense">Add expense</a><a href="#finance-report">Finance report</a><a href="#insights">Spending</a><a href="#budget">Budget plan</a><a href="#investments">Investments</a><a href="#transactions">Transactions</a>
     </nav>
     <div className="sidebar-account"><span>{user.email}</span><button className="signout-button" onClick={signout}><LogOut size={15}/> Sign out</button></div>
    </aside>
    <section className="dashboard-canvas">
     <header className="mobile-header"><div className="mobile-brand"><div className="brand-mark" aria-hidden="true">S</div><strong>Salary Smart</strong></div><button className="btn btn-muted" onClick={signout}>Sign out</button></header>
-    <nav className="mobile-nav" aria-label="Dashboard sections"><a href="#overview">Overview</a><a href="#add-expense">Add expense</a><a href="#insights">Spending</a><a href="#budget">Budget</a><a href="#investments">Invest</a><a href="#transactions">Transactions</a></nav>
+    <nav className="mobile-nav" aria-label="Dashboard sections"><a href="#overview">Overview</a><a href="#add-expense">Add expense</a><a href="#finance-report">Finance report</a><a href="#insights">Spending</a><a href="#budget">Budget</a><a href="#investments">Invest</a><a href="#transactions">Transactions</a></nav>
     <div className="dashboard-content">
      <section id="overview" className="page-title-row">
       <div><h1>Monthly overview</h1><p>{balance>=0?`${money(balance)} remains after ${money(monthTotal)} spent this month.`:`${money(Math.abs(balance))} is over the monthly salary amount.`}</p></div>
@@ -155,6 +196,21 @@ export default function Home() {
        <article className="panel kpi"><span>Spent this month</span><strong>{money(monthTotal)}</strong><p>{month}</p></article>
        <article className="panel kpi kpi-primary"><span>Available balance</span><strong>{money(balance)}</strong><p>{salaryNum?`${Math.max(0,Math.round((balance/salaryNum)*100))}% of salary left`:"Set salary to see balance"}</p></article>
        <article className="panel kpi"><span>Transactions</span><strong>{currentExpenses.length}</strong><p>{currentExpenses.length===1?"entry this month":"entries this month"}</p></article>
+      </section>
+      <section id="finance-report" className="panel finance-report">
+       <div className="panel-heading"><div><h2>Finance Manager Report</h2><p>Monthly financial review · {month}</p></div><span className="budget-history-badge">Based on saved records</span></div>
+       <div className="finance-report-metrics">
+        <div><span>Recorded income</span><strong>{money(salaryNum)}</strong></div>
+        <div><span>Recorded expenses</span><strong>{money(monthTotal)}</strong></div>
+        <div><span>Remaining balance</span><strong>{money(balance)}</strong></div>
+        <div><span>Expense-to-income</span><strong>{financeReview.expenseRatio===null?"—":financeReview.expenseRatio.toFixed(1)+"%"}</strong></div>
+       </div>
+       <div className="finance-report-body">
+        <div><h3>Manager's observations</h3><ul>{financeReview.observations.map((x,i)=><li key={i}>{x}</li>)}</ul></div>
+        <div><h3>Recommended next steps</h3>{financeReview.actions.length?<ol>{financeReview.actions.map((x,i)=><li key={i}>{x}</li>)}</ol>:<p>Enter salary and expense records to generate practical next steps.</p>}</div>
+       </div>
+       <div className="finance-report-savings"><span>Indicative 10% savings goal</span><strong>{money(financeReview.savingsTarget)}</strong><span>Surplus currently available after recorded expenses: {money(financeReview.affordableSavings)}</span></div>
+       <p className="finance-report-note">This is a rule-based review of the data entered in Salary Smart, not a certified accounting statement. It does not include unrecorded cash spending, bank balances, debts, assets, taxes or other income. Salary shown is the latest saved salary record, not necessarily the salary that applied to every historical month.</p>
       </section>
       {showSalary&&<section className="panel salary-panel"><div className="panel-heading"><div><h2>{salaryAction==="change"?"Change monthly salary":"Add salary record"}</h2><p>{salaryHistory.length?`${salaryHistory.length} salary records saved`:"This becomes your starting monthly income"} · Salary records are effective-dated; the latest record determines the monthly salary shown.</p></div><button className="icon-button" aria-label="Close salary form" onClick={()=>{setShowSalary(false);setSalaryAction(null);}}><X size={17}/></button></div><form onSubmit={saveSalary} className="salary-form"><label>Monthly salary (₹)<input className="field" type="number" min="0" step="0.01" required value={salaryInput} onChange={e=>setSalaryInput(e.target.value)} placeholder="50000"/></label><label>Effective from<input className="field" type="date" required value={salaryDate} onChange={e=>setSalaryDate(e.target.value)}/></label><button className="btn btn-primary" disabled={saving}>{saving?"Saving…":salaryAction==="change"?"Save salary change":"Add salary"}</button></form></section>}
       <section id="add-expense" className="expense-grid">
