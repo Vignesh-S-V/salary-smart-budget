@@ -162,8 +162,9 @@ export default function StatementImport({userId,onImported}:{userId:string;onImp
    const dates=[...new Set(candidates.map(x=>x.date))];
    const existing=dates.length?await supabase.from("expenses").select("spent_at,amount,item_name").eq("user_id",user.id).in("spent_at",dates):{data:[],error:null};
    if(existing.error)throw existing.error;
-   const known=new Set((existing.data||[]).map((x:any)=>[x.spent_at,Number(x.amount).toFixed(2),String(x.item_name).trim().toLowerCase()].join("|")));
-   const unique=candidates.filter(x=>!known.has([x.date,x.amount.toFixed(2),x.description.trim().toLowerCase()].join("|")));
+   const normalize=(value:string)=>value.normalize("NFKC").toLowerCase().replace(/[^a-z0-9]+/g," ").trim().replace(/\s+/g," ");
+   const known=new Set((existing.data||[]).map((x:any)=>[x.spent_at,Number(x.amount).toFixed(2),normalize(String(x.item_name))].join("|")));
+   const unique=candidates.filter(x=>{const key=[x.date,x.amount.toFixed(2),normalize(x.description)].join("|");if(known.has(key))return false;known.add(key);return true;});
    const payload=unique.map(x=>({user_id:user.id,item_name:x.description.trim().slice(0,240),amount:x.amount,quantity:1,category_name:CATEGORIES.includes(x.category)?x.category:"Other",spent_at:x.date,notes:"Imported from "+(file?.name||"statement")}));
    if(payload.length){const {error:insertError}=await supabase.from("expenses").insert(payload);if(insertError)throw insertError;}
    const credits=rows.filter(x=>x.direction==="credit").length;
