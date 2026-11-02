@@ -90,14 +90,14 @@ export default function FinanceModules({section,userId,salary,expenses,month}:Pr
   const question=aiQuestion.trim();
   if(!question||aiLoading)return;
   const instant=instantFinanceAnswer(question);
-  if(instant){setAiAnswer(instant);setError("");return;}
+  if(instant){setAiAnswer(instant);setAiQuestion("");setError("");return;}
   setAiLoading(true);setError("");setAiAnswer("");
   try{
    const {data,error:invokeError}=await supabase.functions.invoke("gemini-finance",{body:{question,month}});
    if(invokeError)throw invokeError;
    if(data?.error)throw new Error(data.error);
    if(typeof data?.answer!=="string"||!data.answer.trim())throw new Error("Gemini returned an empty answer. Try rephrasing your question.");
-   setAiAnswer(data.answer);
+   setAiAnswer(data.answer);setAiQuestion("");
   }catch(err){
    setError(err instanceof Error?err.message:"Unable to get an AI answer. Please retry.");
   }finally{setAiLoading(false)}
