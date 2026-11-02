@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import FinanceModules from "./finance-modules";
+import StatementImport from "./statement-import";
 import { Area, AreaChart, CartesianGrid, Pie, PieChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { ArrowDownRight, ArrowUpRight, BadgeIndianRupee, CalendarDays, Check, ChevronDown, CircleHelp, CreditCard, LayoutDashboard, LogOut, Plus, RefreshCw, ShieldCheck, Sparkles, Wallet, X } from "lucide-react";
 
@@ -178,16 +179,16 @@ export default function Home() {
    <aside className="dashboard-sidebar">
     <div className="sidebar-brand"><div className="brand-mark" aria-hidden="true">S</div><div><strong>Salary Smart</strong><span>Personal ledger</span></div></div>
     <nav className="dashboard-nav" aria-label="Dashboard sections">
-     {[["overview","Overview"],["add-expense","Add expense"],["finance-report","Finance report"],["insights","Spending"],["budget","Budget"],["recurring-bills","Recurring bills"],["loans","Loans"],["savings","Savings goals"],["forecast","Cash flow"],["net-worth","Net worth"],["ai-finance","AI Finance Manager"],["investments","Investments"],["transactions","Transactions"]].map(([id,label])=><button key={id} type="button" className={activeSection===id?"active":""} onClick={()=>setActiveSection(id)}>{label}</button>)}
+     {[["overview","Overview"],["add-expense","Add expense"],["finance-report","Finance report"],["insights","Spending"],["budget","Budget"],["recurring-bills","Recurring bills"],["loans","Loans"],["savings","Savings goals"],["forecast","Cash flow"],["net-worth","Net worth"],["ai-finance","AI Finance Manager"],["investments","Investments"],["transactions","Transactions"],["import-statement","Import statement"]].map(([id,label])=><button key={id} type="button" className={activeSection===id?"active":""} onClick={()=>setActiveSection(id)}>{label}</button>)}
     </nav>
     <div className="sidebar-account"><span>{user.email}</span><button className="signout-button" onClick={signout}><LogOut size={15}/> Sign out</button></div>
    </aside>
    <section className="dashboard-canvas">
     <header className="mobile-header"><div className="mobile-brand"><div className="brand-mark" aria-hidden="true">S</div><strong>Salary Smart</strong></div><button className="btn btn-muted" onClick={signout}>Sign out</button></header>
-    <nav className="mobile-nav" aria-label="Dashboard sections">{[["overview","Overview"],["add-expense","Add expense"],["finance-report","Finance"],["insights","Spending"],["budget","Budget"],["recurring-bills","Bills"],["loans","Loans"],["savings","Goals"],["forecast","Forecast"],["net-worth","Net worth"],["ai-finance","AI Manager"],["investments","Invest"],["transactions","History"]].map(([id,label])=><button key={id} type="button" className={activeSection===id?"active":""} onClick={()=>setActiveSection(id)}>{label}</button>)}</nav>
+    <nav className="mobile-nav" aria-label="Dashboard sections">{[["overview","Overview"],["add-expense","Add expense"],["finance-report","Finance"],["insights","Spending"],["budget","Budget"],["recurring-bills","Bills"],["loans","Loans"],["savings","Goals"],["forecast","Forecast"],["net-worth","Net worth"],["ai-finance","AI Manager"],["investments","Invest"],["transactions","History"],["import-statement","Import"]].map(([id,label])=><button key={id} type="button" className={activeSection===id?"active":""} onClick={()=>setActiveSection(id)}>{label}</button>)}</nav>
     <div className="dashboard-content">
      <section className="page-title-row">
-      <div><h1>{({overview:"Monthly overview","add-expense":"Add an expense","finance-report":"Finance Manager Report",insights:"Spending insights",budget:"Budget Management","recurring-bills":"Recurring Bills",loans:"Loan Manager",savings:"Savings Goals",forecast:"Cash Flow Forecast","net-worth":"Net Worth Tracker","ai-finance":"AI Finance Manager",investments:"Savings & investments",transactions:"Transaction history"} as Record<string,string>)[activeSection]}</h1><p>{activeSection==="overview"?(balance>=0?`${money(balance)} remains after ${money(monthTotal)} spent this month.`:`${money(Math.abs(balance))} is over the monthly salary amount.`):"Your personal finance workspace · "+month}</p></div>
+      <div><h1>{({overview:"Monthly overview","add-expense":"Add an expense","finance-report":"Finance Manager Report",insights:"Spending insights",budget:"Budget Management","recurring-bills":"Recurring Bills",loans:"Loan Manager",savings:"Savings Goals",forecast:"Cash Flow Forecast","net-worth":"Net Worth Tracker","ai-finance":"AI Finance Manager",investments:"Savings & investments",transactions:"Transaction history","import-statement":"Import bank statement"} as Record<string,string>)[activeSection]}</h1><p>{activeSection==="overview"?(balance>=0?`${money(balance)} remains after ${money(monthTotal)} spent this month.`:`${money(Math.abs(balance))} is over the monthly salary amount.`):"Your personal finance workspace · "+month}</p></div>
       <div className="overview-actions"><label>Month<input aria-label="Analytics month" type="month" className="field" value={month} onChange={e=>setMonth(e.target.value)}/></label></div>
      </section>
      {error&&<div role="alert" className="state-banner state-error">{error}</div>}
@@ -280,6 +281,7 @@ export default function Home() {
        <p className="investment-disclaimer">Educational guidance only, not personalized financial advice. Rates, tax rules and scheme terms change; verify current details with the bank, India Post, AMC or a SEBI-registered adviser. Mutual funds and market-linked products can lose value. “Low risk” does not mean “loss impossible.”</p>
       </section>
       </>}
+      {activeSection==="import-statement"&&<StatementImport userId={user.id} onImported={()=>load(user.id)}/>}
       {activeSection==="transactions"&&<>
 <section id="transactions" className="panel transaction-section"><div className="panel-heading transaction-heading"><div><h2>Recent transactions</h2><p>Newest entries first</p></div><span>{expenses.length} saved</span></div>{expenses.length?<div className="overflow-x-auto"><table><thead><tr><th>Item</th><th>Category</th><th>Date</th><th>Quantity</th><th>Amount</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>{expenses.map(x=><tr key={x.id}><td className="transaction-item"><strong>{x.item_name}</strong>{x.notes&&<span>{x.notes}</span>}</td><td>{x.category_name}</td><td>{new Date(x.spent_at+"T00:00:00").toLocaleDateString("en-IN")}</td><td>{x.quantity}</td><td>{money(Number(x.amount))}</td><td><button className="remove-button" aria-label={`Delete ${x.item_name}`} onClick={()=>removeExpense(x.id)}><X size={15}/></button></td></tr>)}</tbody></table></div>:<div className="empty-state table-empty"><Wallet size={22}/><p>No transactions saved yet.</p></div>}</section>
       </>}     </>}
