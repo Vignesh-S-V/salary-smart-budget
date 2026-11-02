@@ -98,15 +98,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .kpi .salary-actions button:disabled { color: rgba(255,255,255,.55); }
 .kpi-primary { background: linear-gradient(135deg,#7c3aed,#5521a8); }
 .kpi-primary > strong { color: #fff; }
-.kpi > span { color: var(--muted); font-size: 13px; font-weight: 700; }
-.kpi > strong { display: block; margin-top: 10px; font-size: 24px; line-height: 1.15; letter-spacing: -.025em; overflow-wrap: anywhere; }
-.kpi > p { margin: 10px 0 0; color: var(--muted); font-size: 12px; }
-.kpi > button { margin-top: 12px; padding: 0; border: 0; background: transparent; color: var(--accent); font-size: 12px; font-weight: 800; text-decoration: underline; text-underline-offset: 3px; }
 .salary-actions { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 12px; }
 .salary-actions button { padding: 0; border: 0; background: transparent; color: var(--accent); font-size: 12px; font-weight: 800; text-decoration: underline; text-underline-offset: 3px; }
 .salary-actions button:disabled { cursor: not-allowed; color: var(--muted); opacity: .55; text-decoration: none; }
-.kpi-primary { background: #f8fafc; }
-.kpi-primary > strong { color: var(--accent); font-size: 28px; }
 .overview-chart-grid { display: grid; grid-template-columns: minmax(0,1.1fr) minmax(300px,.9fr); gap: 16px; margin-bottom: 16px; align-items: stretch; }
 .overview-chart-grid > .category-panel, .overview-chart-grid > .repeats-panel { min-width: 0; padding: 20px; border-radius: 12px; box-shadow: 0 4px 18px rgba(15,35,70,.05); }
 .overview-daily-grid { display: grid; grid-template-columns: minmax(0,1fr); margin-bottom: 16px; }
