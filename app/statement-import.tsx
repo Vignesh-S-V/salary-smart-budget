@@ -50,21 +50,66 @@ function parseRows(rows:unknown[][]):Tx[] {
  }
  return out;
 }
+function parseBankAmount(value:string):number {
+ const cleaned=value.replace(/[₹,\\s]/g,"").replace(/\\(([^)]+)\\)/,"-$1").replace(/(?:CR|DR)$/i,"");
+ const n=Number(cleaned);
+ return Number.isFinite(n)?Math.abs(n):0;
+}
 async function parsePdf(file:File):Promise<Tx[]> {
  const pdfjs=await import("pdfjs-dist/legacy/build/pdf.mjs");
- // PDF.js v4 requires an explicit module worker URL in browser builds.
  pdfjs.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/legacy/build/pdf.worker.mjs`;
  const data=new Uint8Array(await file.arrayBuffer());
- const pdf=await pdfjs.getDocument({data, useWorkerFetch:false, isEvalSupported:false}).promise;
- const rows:unknown[][]=[];
+ const pdf=await pdfjs.getDocument({data,useWorkerFetch:false,isEvalSupported:false}).promise;
+ const transactions:Tx[]=[];
+ const datePattern=/^(?:\\d{1,2}[\\/-]\\d{1,2}[\\/-]\\d{2,4}|\\d{4}-\\d{1,2}-\\d{1,2})$/;
  for(let p=1;p<=pdf.numPages;p++){
-  const page=await pdf.getPage(p); const text=await page.getTextContent();
-  const items=(text.items as any[]).filter(x=>typeof x.str==="string"&&x.str.trim());
-  const lines=new Map<number,{x:number;s:string}[]>();
-  for(const it of items){const y=Math.round(it.transform?.[5]||0);const a=lines.get(y)||[];a.push({x:it.transform?.[4]||0,s:it.str});lines.set(y,a);}
-  for(const [,parts] of [...lines.entries()].sort((a,b)=>b[0]-a[0]))rows.push(parts.sort((a,b)=>a.x-b.x).map(x=>x.s));
+  const page=await pdf.getPage(p);
+  const content=await page.getTextContent();
+  const items=(content.items as any[]).filter(x=>typeof x.str==="string"&&x.str.trim()).map(x=>({x:Number(x.transform?.[4]||0),y:Number(x.transform?.[5]||0),s:String(x.str).trim()}));
+  // Find the exact bank-statement table header. Ignore all account/profile text outside it.
+  const headerWords=["date","particulars","deposits","withdrawals","balance"];
+  let headerY:number|undefined;
+  let anchors:number[]=[];
+  const yGroups=new Map<number,typeof items>();
+  for(const it of items){const y=Math.round(it.y);const a=yGroups.get(y)||[];a.push(it);yGroups.set(y,a);}
+  for(const [y,line] of yGroups){
+   const normalized=line.map(v=>v.s.toLowerCase().replace(/[^a-z]/g,""));
+   if(headerWords.every(w=>normalized.some(v=>v===w))){
+    headerY=y;
+    anchors=headerWords.map(w=>line.find(v=>v.s.toLowerCase().replace(/[^a-z]/g,"")===w)!.x);
+    break;
+   }
+  }
+  if(headerY===undefined||anchors.length!==5)continue;
+  const bounds=[-Infinity,...anchors.slice(0,4).map((x,i)=>(x+anchors[i+1])/2),Infinity];
+  const lines=[...yGroups.entries()].filter(([y])=>y<headerY!).sort((a,b)=>b[0]-a[0]);
+  let last:Tx|undefined;
+  for(const [y,line] of lines){
+   const cols=["","","","",""];
+   for(const it of line){
+    if(y>=headerY)continue;
+    let col=anchors.findIndex((x,i)=>it.x>=bounds[i]&&it.x<bounds[i+1]);
+    if(col<0)col=4;
+    cols[col]=(cols[col]+" "+it.s).trim();
+   }
+   const dateText=cols[0].trim().replace(/\\s+/g,"");
+   const normalizedDate=dateISO(dateText);
+   const particulars=cols[1].trim().replace(/\\s+/g," ");
+   const deposit=parseBankAmount(cols[2]);
+   const withdrawal=parseBankAmount(cols[3]);
+   // Balance column is intentionally ignored and never imported.
+   if(normalizedDate && particulars && (deposit>0||withdrawal>0)){
+    const direction=deposit>0&&withdrawal===0?"credit":"debit";
+    const amount=direction==="credit"?deposit:withdrawal;
+    last={date:normalizedDate,description:particulars,amount,direction,category:category(particulars),confidence:"high"};
+    transactions.push(last);
+   } else if(last && !normalizedDate && particulars && !deposit && !withdrawal && !/opening balance/i.test(particulars)){
+    // Join wrapped narration lines belonging to the preceding dated transaction.
+    last.description=(last.description+" "+particulars).trim();
+   }
+  }
  }
- return parseRows(rows);
+ return transactions;
 }
 export default function StatementImport({userId,onImported}:{userId:string;onImported?:()=>void}) {
  const [file,setFile]=useState<File|null>(null),[rows,setRows]=useState<Tx[]>([]),[busy,setBusy]=useState(false),[error,setError]=useState(""),[message,setMessage]=useState("");
