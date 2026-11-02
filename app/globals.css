@@ -305,6 +305,8 @@ dashboard-content footer, .dashboard-content footer { min-height: 54px; display:
   .overview-actions { flex: 1 1 100%; justify-content: flex-start; }
   .overview-actions label { min-width: 0; }
   .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .finance-report-metrics { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .finance-report-body { grid-template-columns: 1fr; gap: 16px; }
   .expense-grid, .insights-grid { grid-template-columns: minmax(0, 1fr); gap: 12px; }
   .expense-form-panel, .category-panel, .trend-panel, .repeats-panel { min-width: 0; }
   .investment-section { padding-inline: 14px; }
@@ -323,6 +325,12 @@ dashboard-content footer, .dashboard-content footer { min-height: 54px; display:
   .overview-actions label { min-width: 0; }
   .overview-actions .btn { padding-inline: 10px; white-space: nowrap; }
   .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .finance-report { padding: 14px; }
+  .finance-report-metrics { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
+  .finance-report-metrics > div { padding: 10px; }
+  .finance-report-metrics strong { font-size: 15px; }
+  .finance-report-body { grid-template-columns: 1fr; gap: 14px; }
+  .finance-report-savings { align-items: flex-start; flex-direction: column; gap: 5px; }
   .investment-heading { gap: 8px; }
   .investment-heading .budget-history-badge { white-space: nowrap; }
   .investment-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
