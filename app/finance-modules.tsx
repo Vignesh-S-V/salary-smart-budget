@@ -61,6 +61,30 @@ export default function FinanceModules({section,userId,salary,expenses,month}:Pr
  if(salary>0)healthInputs.push(emiTotal/salary<=.2?25:emiTotal/salary<=.35?16:5);
  if(emergencyMonths!==null)healthInputs.push(emergencyMonths>=6?25:emergencyMonths>=3?19:emergencyMonths>=1?12:4);
  const healthScore=healthInputs.length>=3?Math.round(healthInputs.reduce((s,x)=>s+x,0)/healthInputs.length*4):null;
+ function instantFinanceAnswer(raw:string):string|null{
+  const q=raw.toLowerCase();
+  const totals=[...actual.entries()].sort((a,b)=>b[1]-a[1]);
+  if(/(highest|most|maximum|top).*(spend|spent|expense|category)|(spend|spent|expense).*(highest|most|maximum|category)|அதிகம்.*செலவ/.test(q)){
+   if(!totals.length)return "இந்த மாதம் expense record இல்லை.";
+   const [name,value]=totals[0];return "இந்த மாதம் அதிக செலவு: "+name+" — "+money(value)+" ("+(monthSpend?((value/monthSpend)*100).toFixed(1):"0")+"% of total).";
+  }
+  if(/(total|overall|how much).*(expense|spent)|expense.*(total|amount)|மொத்த.*செலவ/.test(q)){
+   return "இந்த மாத recorded expenses: "+money(monthSpend)+". இது app-ல் பதிவு செய்த transactions மட்டும்.";
+  }
+  if(/(saving|saved|left|remaining|balance).*(how much|amount|this month)?|how much.*(save|left|remain)|சேமிப்பு|மீதம்/.test(q)){
+   if(!salary)return "Salary record இல்லை. முதலில் Salary section-ல் பதிவு செய்.";
+   return "Salary: "+money(salary)+"; recorded expenses: "+money(monthSpend)+"; estimated remaining: "+money(savingsAmount)+"; savings rate: "+(savingsRate||0).toFixed(1)+"%. இது bank balance அல்ல.";
+  }
+  if(/(loan|emi).*(priority|first|highest|repay|interest)|which loan|கடன்/.test(q)){
+   if(!loanStrategy.length)return "Active loan records இல்லை.";
+   const x=loanStrategy[0];return "Highest APR loan: "+x.lender+" — "+Number(x.annual_interest_rate).toFixed(2)+"% APR, outstanding "+money(Number(x.outstanding_balance))+". Prepayment charges check செய்.";
+  }
+  if(/(upcoming|next|due).*(bill|emi|payment)|வரும்.*(பில்|கட்டணம்)/.test(q)){
+   return upcomingItems.length?"Next 30 days: "+upcomingItems.map(x=>x.name+" "+money(x.amount)+" due "+x.date).join("; "):"Next 30 days-ல் due bills/EMI இல்லை (saved dates அடிப்படையில்).";
+  }
+  if(/net worth|சொத்து மதிப்பு/.test(q))return "Recorded net worth: "+money(netWorth)+" (assets "+money(assets)+" − liabilities "+money(manualDebt+loanBalance)+").";
+  return null;
+ }
  async function askGemini(e:FormEvent){
   e.preventDefault();
   const question=aiQuestion.trim();
