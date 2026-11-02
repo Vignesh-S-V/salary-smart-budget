@@ -52,6 +52,8 @@ function parseRows(rows:unknown[][]):Tx[] {
 }
 async function parsePdf(file:File):Promise<Tx[]> {
  const pdfjs=await import("pdfjs-dist/legacy/build/pdf.mjs");
+ // PDF.js v4 requires an explicit module worker URL in browser builds.
+ pdfjs.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/legacy/build/pdf.worker.mjs`;
  const data=new Uint8Array(await file.arrayBuffer());
  const pdf=await pdfjs.getDocument({data, useWorkerFetch:false, isEvalSupported:false}).promise;
  const rows:unknown[][]=[];
