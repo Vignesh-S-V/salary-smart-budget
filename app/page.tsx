@@ -187,7 +187,7 @@ export default function Home() {
     <div className="dashboard-content">
      <section className="page-title-row">
       <div><h1>{({overview:"Monthly overview","add-expense":"Add an expense","finance-report":"Finance Manager Report",insights:"Spending insights",budget:"Budget planner",investments:"Savings & investments",transactions:"Transaction history"} as Record<string,string>)[activeSection]}</h1><p>{activeSection==="overview"?(balance>=0?`${money(balance)} remains after ${money(monthTotal)} spent this month.`:`${money(Math.abs(balance))} is over the monthly salary amount.`):"Your personal finance workspace · "+month}</p></div>
-      <div className="overview-actions"><label>Month<input aria-label="Analytics month" type="month" className="field" value={month} onChange={e=>setMonth(e.target.value)}/></label><a className="btn btn-primary" href="#add-expense"><Plus size={16}/> Add expense</a></div>
+      <div className="overview-actions"><label>Month<input aria-label="Analytics month" type="month" className="field" value={month} onChange={e=>setMonth(e.target.value)}/></label><button className="btn btn-primary" type="button" onClick={()=>setActiveSection("add-expense")}><Plus size={16}/> Add expense</button></div>
      </section>
      {error&&<div role="alert" className="state-banner state-error">{error}</div>}
      {notice&&<div role="status" aria-live="polite" className="state-banner state-success"><span>{notice}</span><button aria-label="Dismiss message" onClick={()=>setNotice("")}><X size={15}/></button></div>}
