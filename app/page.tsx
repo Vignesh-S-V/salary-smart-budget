@@ -82,11 +82,9 @@ export default function Home() {
  const salaryIncome=importedSalary>0?importedSalary:Number(salaryByMonth.get(month)?.monthly_salary||0);
  const otherIncome=currentIncomes.filter(x=>x.income_type!=="salary").reduce((sum,x)=>sum+Number(x.amount),0);
  const monthlyIncome=salaryIncome+otherIncome;
- const transactionDates=[...incomes.map(x=>x.received_at),...expenses.map(x=>x.spent_at)].sort();
- const firstLedgerMonth=transactionDates[0]?.slice(0,7)||month;
  const previousTransactionIncome=incomes.filter(x=>x.received_at<monthStart).reduce((sum,x)=>sum+Number(x.amount),0);
  const previousSalaryHistoryIncome=Array.from(salaryByMonth.entries())
-  .filter(([salaryMonth])=>salaryMonth>=firstLedgerMonth&&salaryMonth<month&&!((salaryTransactionsByMonth.get(salaryMonth)||0)>0))
+  .filter(([salaryMonth])=>salaryMonth<month&&!((salaryTransactionsByMonth.get(salaryMonth)||0)>0))
   .reduce((sum,[_salaryMonth,row])=>sum+Number(row.monthly_salary||0),0);
  const previousRecordedIncome=previousTransactionIncome+previousSalaryHistoryIncome;
  const previousRecordedExpenses=expenses.filter(x=>x.spent_at<monthStart).reduce((sum,x)=>sum+Number(x.amount),0);
