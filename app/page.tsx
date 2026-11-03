@@ -67,7 +67,12 @@ export default function Home() {
  const importedSalary=currentIncomes.filter(x=>x.income_type==="salary").reduce((sum,x)=>sum+Number(x.amount),0);
  const otherIncome=currentIncomes.filter(x=>x.income_type!=="salary").reduce((sum,x)=>sum+Number(x.amount),0);
  const monthlyIncome=(importedSalary>0?importedSalary:salaryNum)+otherIncome;
- const balance=monthlyIncome-monthTotal;
+ const monthStart=month+"-01";
+ const previousRecordedIncome=incomes.filter(x=>x.received_at<monthStart).reduce((sum,x)=>sum+Number(x.amount),0);
+ const previousRecordedExpenses=expenses.filter(x=>x.spent_at<monthStart).reduce((sum,x)=>sum+Number(x.amount),0);
+ const carryForwardBalance=previousRecordedIncome-previousRecordedExpenses;
+ const trackedFunds=monthlyIncome+carryForwardBalance;
+ const balance=trackedFunds-monthTotal;
  const daily=useMemo(()=>{const map=new Map<string,number>();currentExpenses.forEach(e=>map.set(e.spent_at,(map.get(e.spent_at)||0)+Number(e.amount)));return Array.from(map.entries()).sort((a,b)=>a[0].localeCompare(b[0])).map(([date,total])=>({date:date.slice(5),total}));},[currentExpenses]);
  const byCategory=useMemo(()=>{const map=new Map<string,number>();currentExpenses.forEach(e=>map.set(e.category_name,(map.get(e.category_name)||0)+Number(e.amount)));return Array.from(map.entries()).map(([name,value])=>({name,value})).sort((a,b)=>b.value-a.value);},[currentExpenses]);
 
@@ -243,7 +248,7 @@ export default function Home() {
       <section className="kpi-grid" aria-label="Monthly totals">
        <article className="panel kpi"><span>Monthly income</span><strong>{money(monthlyIncome)}</strong><p>Salary basis: {money(salaryNum)} · Other credits: {money(otherIncome)}</p><div className="salary-actions"><button type="button" onClick={()=>{setSalaryAction("add");setSalaryInput("");setSalaryDate(today());setShowSalary(true);setError("");}}>Add salary</button><button type="button" disabled={!salary} onClick={()=>{setSalaryAction("change");setSalaryInput(String(salaryNum||""));setSalaryDate(today());setShowSalary(true);setError("");}}>Change salary</button></div></article>
        <article className="panel kpi"><span>Spent this month</span><strong>{money(monthTotal)}</strong><p>{month}</p></article>
-       <article className="panel kpi kpi-primary"><span>Available balance</span><strong>{money(balance)}</strong><p>{monthlyIncome?`${Math.max(0,Math.round((balance/monthlyIncome)*100))}% of income left`:"Record income to see balance"}</p></article>
+       <article className="panel kpi kpi-primary"><span>Available balance · tracked estimate</span><strong>{money(balance)}</strong><p>Salary + this month’s income + {money(carryForwardBalance)} carried forward − {money(monthTotal)} expenses. This is not a live bank balance.</p></article>
        <article className="panel kpi"><span>Transactions</span><strong>{currentExpenses.length}</strong><p>{currentExpenses.length===1?"entry this month":"entries this month"}</p></article>
       </section>
       {showSalary&&<section className="panel salary-panel"><div className="panel-heading"><div><h2>{salaryAction==="change"?"Change monthly salary":"Add salary record"}</h2><p>{salaryHistory.length?`${salaryHistory.length} salary records saved`:"This becomes your starting monthly income"} · Salary records are effective-dated; the latest record determines the monthly salary shown.</p></div><button className="icon-button" aria-label="Close salary form" onClick={()=>{setShowSalary(false);setSalaryAction(null);}}><X size={17}/></button></div><form onSubmit={saveSalary} className="salary-form"><label>Monthly salary (₹)<input className="field" type="number" min="0" step="0.01" required value={salaryInput} onChange={e=>setSalaryInput(e.target.value)} placeholder="50000"/></label><label>Effective from<input className="field" type="date" required value={salaryDate} onChange={e=>setSalaryDate(e.target.value)}/></label><button className="btn btn-primary" disabled={saving}>{saving?"Saving…":salaryAction==="change"?"Save salary change":"Add salary"}</button></form></section>}
@@ -335,12 +340,12 @@ export default function Home() {
           <label>Income source<input className="field" required value={oneTimeIncomeSource} onChange={e=>setOneTimeIncomeSource(e.target.value)} placeholder="e.g. Annual bonus or freelance work"/></label>
           <label>Amount (₹)<input className="field" type="number" min="0.01" step="0.01" required value={oneTimeIncomeAmount} onChange={e=>setOneTimeIncomeAmount(e.target.value)} placeholder="25500"/></label>
           <label>Received date<input className="field" type="date" required value={oneTimeIncomeDate} onChange={e=>setOneTimeIncomeDate(e.target.value)}/></label>
-          <button className="btn btn-primary" disabled={saving}>{saving?"Saving…":"Save one-time income"}</button>
+          <button className="btn btn-primary" disabled={saving}>{saving?"Saving…":"Save Other Income"}</button>
          </form>
         </section>
         <section className="panel transaction-section" style={{marginTop:16}}>
-         <div className="panel-heading"><div><h2>Income ledger</h2><p>Bank statement credits and one-time income · {month}</p></div><strong>{money(currentIncomes.reduce((sum,x)=>sum+Number(x.amount),0))}</strong></div>
-         {currentIncomes.length?<div className="overflow-x-auto"><table><thead><tr><th>Source / description</th><th>Type</th><th>Date</th><th>Amount</th><th>Action</th></tr></thead><tbody>{currentIncomes.map(x=><tr key={x.id}><td className="transaction-item"><strong>{x.item_name}</strong>{x.notes&&<span>{x.notes}</span>}</td><td>{x.income_type==="salary"?"Salary":"Other income"}</td><td>{new Date(x.received_at+"T00:00:00").toLocaleDateString("en-IN")}</td><td>{money(Number(x.amount))}</td><td><button className="remove-button" aria-label={`Delete income ${x.item_name}`} onClick={()=>removeIncome(x.id)}><X size={15}/></button></td></tr>)}</tbody></table></div>:<div className="empty-state table-empty"><Wallet size={22}/><p>No income credits saved for this month.</p></div>}
+         <div className="panel-heading"><div><h2>Income ledger</h2><p>All saved income entries · previous-month credits are included here too</p></div><strong>{money(incomes.reduce((sum,x)=>sum+Number(x.amount),0))}</strong></div>
+         {incomes.length?<div className="overflow-x-auto"><table><thead><tr><th>Source / description</th><th>Type</th><th>Date</th><th>Amount</th><th>Action</th></tr></thead><tbody>{incomes.map(x=><tr key={x.id}><td className="transaction-item"><strong>{x.item_name}</strong>{x.notes&&<span>{x.notes}</span>}</td><td>{x.income_type==="salary"?"Salary":"Other income"}</td><td>{new Date(x.received_at+"T00:00:00").toLocaleDateString("en-IN")}</td><td>{money(Number(x.amount))}</td><td><button className="remove-button" aria-label={`Delete income ${x.item_name}`} onClick={()=>removeIncome(x.id)}><X size={15}/></button></td></tr>)}</tbody></table></div>:<div className="empty-state table-empty"><Wallet size={22}/><p>No income credits saved yet.</p></div>}
         </section>
         <section className="panel transaction-section" style={{marginTop:16}}>
          <div className="panel-heading"><div><h2>Own-account transfers</h2><p>Transfers are displayed separately and do not count as income or expenses.</p></div><strong>{currentTransfers.length} records</strong></div>
