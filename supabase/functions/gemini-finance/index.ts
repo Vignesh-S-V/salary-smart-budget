@@ -164,7 +164,7 @@ Deno.serve(async (req: Request) => {
       .filter((row) => row.received_at.slice(0, 7) === requestedMonth && row.income_type !== "salary")
       .map((row) => ({
         source: row.item_name || "Other income",
-        type: row.notes?.match(/One-time income type:\\s*([^;]+)/i)?.[1]
+        type: row.notes?.match(/One-time income type:\s*([^;]+)/i)?.[1]
           || (row.income_type === "refund" ? "Refund" : "Other income"),
         amount: Number(row.amount) || 0,
         receivedAt: row.received_at,
