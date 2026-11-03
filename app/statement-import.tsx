@@ -41,7 +41,7 @@ function categorySuggestion(item:string) {
  // Strong financial intent is resolved before restaurant and general expense words.
  if(tokenPhrase(["loan","loans","emi"]) || /\b(loan|emi)\b/.test(normalized))
   return {category:"Loan",matched:true,examples:"personal loan, gold loan, home loan, car loan EMI"};
- if(tokenPhrase(["credit card bill","credit card payment","rent","electricity bill","electricity","current bill","water bill","internet bill","wifi bill","recharge","insurance premium","gas bill","mobile bill","phone bill","subscription","dth","d2h","d h tv","dish tv","tata play","sun direct","airtel digital tv","videocon d2h","tv recharge","tv bill"]) || /\\b(dth|d\\s*h)\\s*(tv)?\\b/.test(normalized))
+ if(tokenPhrase(["credit card bill","credit card payment","rent","electricity bill","electricity","current bill","water bill","internet bill","wifi bill","recharge","insurance premium","gas bill","mobile bill","phone bill","subscription","dth","d2h","d h tv","dish tv","tata play","sun direct","airtel digital tv","videocon d2h","tv recharge","tv bill"]) || /\\b(dth|d\s*h)\s*(tv)?\\b/.test(normalized))
   return {category:"Bills",matched:true,examples:"credit card bill, electricity, DTH/TV recharge, Tata Play, rent"};
  if(tokenPhrase(["sip","crt sip","crt","mutual fund","mutual funds","stock","stocks","share","shares","share market","stock market","investment","investments","recurring deposit","fixed deposit","gold savings","gold scheme","chit fund","nps","ppf","elss","index fund","equity fund","nifty","sensex","ppf","epf","rd","fd"]))
   return {category:"Investment & Savings",matched:true,examples:"SIP, CRT SIP, mutual funds, stocks, savings deposits"};
@@ -72,7 +72,7 @@ function parseRows(rows:unknown[][]):Tx[] {
  for(const row of rows.slice(headerAt<0?0:headerAt+1)){
    const date=dateISO(di>=0?row[di]:row.find(v=>dateISO(v)));
    const description=String(desc>=0?row[desc]??"":row.filter(v=>!dateISO(v)).map(v=>String(v??"")).filter(Boolean).join(" ")).trim();
-   const rawNum=(v:unknown):number|null=>{const raw=String(v??"").trim();if(!raw)return null;const n=Number(raw.replace(/[₹,\\s]/g,"").replace(/[()]/g,""));return Number.isFinite(n)?Math.abs(n):null;};
+   const rawNum=(v:unknown):number|null=>{const raw=String(v??"").trim();if(!raw)return null;const n=Number(raw.replace(/[₹,\s]/g,"").replace(/[()]/g,""));return Number.isFinite(n)?Math.abs(n):null;};
    const d=debit>=0?(rawNum(row[debit])??0):0;
    const c=credit>=0?(rawNum(row[credit])??0):0;
    let debitValue=d,creditValue=c;
@@ -84,10 +84,19 @@ function parseRows(rows:unknown[][]):Tx[] {
  }
  return out;
 }
-function parseBankAmount(value:string):number {
- const cleaned=value.replace(/[₹,\\s]/g,"").replace(/\\(([^)]+)\\)/,"-$1").replace(/(?:CR|DR)$/i,"");
+function parseStatementNumber(value:string):number|null {
+ const raw=value.trim();
+ if(!raw)return null;
+ const negative=/^\\(.*\\)$/.test(raw)||/\\bDR$/i.test(raw)||raw.startsWith("-");
+ const cleaned=raw.replace(/[₹,\\s]/g,"").replace(/[()]/g,"").replace(/(?:CR|DR)$/i,"").replace(/^-/,"");
  const n=Number(cleaned);
- return Number.isFinite(n)?Math.abs(n):0;
+ return Number.isFinite(n)?(negative?-Math.abs(n):Math.abs(n)):null;
+}
+function parseBankAmount(value:string):number {
+ return Math.abs(parseStatementNumber(value)??0);
+}
+function parseBankBalance(value:string):number|null {
+ return parseStatementNumber(value);
 }
 function parsePositionedBankItems(items:Array<{x:number;y:number;s:string}>):Tx[] {
  const headerWords=["date","particulars","deposits","withdrawals","balance"];
@@ -111,11 +120,11 @@ function parsePositionedBankItems(items:Array<{x:number;y:number;s:string}>):Tx[
    const col=anchors.findIndex((x,i)=>it.x>=bounds[i]&&it.x<bounds[i+1]);
    const target=col<0?4:col;cols[target]=(cols[target]+" "+it.s).trim();
   }
-  const normalizedDate=dateISO(cols[0].trim().replace(/\\s+/g,""));
-  const particulars=cols[1].trim().replace(/\\s+/g," ");
+  const normalizedDate=dateISO(cols[0].trim().replace(/\s+/g,""));
+  const particulars=cols[1].trim().replace(/\s+/g," ");
   const deposit=parseBankAmount(cols[2]),withdrawal=parseBankAmount(cols[3]);
   const balanceText=cols[4].trim();
-  const balance=balanceText?parseBankAmount(balanceText):null;
+  const balance=parseBankBalance(balanceText);
   if(normalizedDate&&particulars&&(deposit>0||withdrawal>0)&&!(deposit>0&&withdrawal>0)){
    const bankDirection=deposit>0?"credit":"debit";
    const direction=classifyStatementDirection(particulars,bankDirection);
