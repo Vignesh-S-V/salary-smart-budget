@@ -7,7 +7,9 @@ import { Area, AreaChart, CartesianGrid, Pie, PieChart, Cell, ResponsiveContaine
 import { ArrowDownRight, ArrowUpRight, BadgeIndianRupee, CalendarDays, Check, ChevronDown, CircleHelp, CreditCard, LayoutDashboard, LogOut, Plus, RefreshCw, ShieldCheck, Sparkles, Wallet, X } from "lucide-react";
 
 type Salary = { id:string; monthly_salary:number; effective_from:string; note:string|null };
-type Expense = { id:string; item_name:string; amount:number; quantity:number; category_name:string; spent_at:string; notes:string|null; import_batch_id?:string|null };\ntype IncomeTransaction = { id:string; item_name:string; amount:number; income_type:"salary"|"other"|"refund"; received_at:string; notes:string|null; import_batch_id:string|null };\ntype AccountTransfer = { id:string; item_name:string; amount:number; direction:"incoming"|"outgoing"; transferred_at:string; notes:string|null; import_batch_id:string|null };
+type Expense = { id:string; item_name:string; amount:number; quantity:number; category_name:string; spent_at:string; notes:string|null; import_batch_id?:string|null };
+type IncomeTransaction = { id:string; item_name:string; amount:number; income_type:"salary"|"other"|"refund"; received_at:string; notes:string|null; import_batch_id:string|null };
+type AccountTransfer = { id:string; item_name:string; amount:number; direction:"incoming"|"outgoing"; transferred_at:string; notes:string|null; import_batch_id:string|null };
 const COLORS = ["#1d5fd6","#477dde","#719be5","#9db9ec","#c8d7f4"];
 const CATEGORIES = ["Groceries","Medical","Transport","Bills","Loan","Food & Drinks","Personal Care","Shopping","Home & Essentials","Education","Entertainment","Investment & Savings","Other"];
 const money = (n:number) => new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR",minimumFractionDigits:2,maximumFractionDigits:2}).format(n||0);
