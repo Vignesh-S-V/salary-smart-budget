@@ -175,16 +175,16 @@ export default function FinanceModules({section,userId,salary,monthlyIncome,othe
    <div className="finance-section-heading"><h3>Current month cash flow · {new Date(Number(month.slice(0,4)),Number(month.slice(5,7))-1,1).toLocaleDateString("en-IN",{month:"long",year:"numeric"})}</h3><span>Actual records through today</span></div>
    <div className="finance-summary-grid">
     <div><span>Opening balance · this month</span><strong>{money(openingBalance)}</strong></div>
-    <div><span>Salary basis · this month</span><strong>{money(salary)}</strong><small>{actualSalaryCredits>0?"Imported salary credits":"Saved salary record; not bank-confirmed"}</small></div>
+    <div><span>Salary received · this month</span><strong>{money(actualSalaryCredits)}</strong><small>{actualSalaryCredits>0?"Actual salary credits recorded":"Not received / not recorded yet"}</small></div>
     <div><span>Other credits received</span><strong>{money(otherCreditsThisMonth)}</strong></div>
     <div><span>Cash outflow recorded</span><strong>{money(monthSpend)}</strong></div>
     <div><span>Available balance · now</span><strong style={{color:currentAvailableBalance>=0?"#087c65":"#c0392b"}}>{money(currentAvailableBalance)}</strong></div>
    </div>
-   <p className="module-help">Current calculation: opening balance + salary basis + recorded credits − recorded expenses. Salary basis comes from the saved salary record when an imported salary credit is not present. This is a tracked estimate, not a live bank balance.</p>
+   <p className="module-help">Current calculation: opening balance + salary actually received + other recorded credits − recorded expenses. A saved monthly salary amount is only a reference; it is not added to available cash until a salary credit is recorded. This is a tracked estimate, not a live bank balance.</p>
    <section className="finance-command-panel">
     <div className="finance-section-heading"><h3>Recent transactions · {month}</h3><strong>{currentCashFlowRows.length} records</strong></div>
     {currentCashFlowRows.length?<div className="overflow-x-auto"><table><thead><tr><th>Date</th><th>Description</th><th>Type / category</th><th>Cash flow</th></tr></thead><tbody>{currentCashFlowRows.map(row=><tr key={row.id}><td>{new Date(row.date+"T00:00:00").toLocaleDateString("en-IN")}</td><td><strong>{row.description}</strong></td><td>{row.kind}</td><td style={{fontWeight:700,color:row.direction==="inflow"?"#087c65":"#c0392b"}}>{row.direction==="inflow"?"+":"−"}{money(row.amount)}</td></tr>)}</tbody><tfoot><tr><td colSpan={3}>Recorded credits total</td><td style={{color:"#087c65",fontWeight:700}}>+{money(currentActualCredits.reduce((sum,x)=>sum+Number(x.amount),0))}</td></tr><tr><td colSpan={3}>Recorded expenses total</td><td style={{color:"#c0392b",fontWeight:700}}>−{money(monthSpend)}</td></tr></tfoot></table></div>:<p className="empty-state">No income or expense transactions recorded for this month yet.</p>}
-    {salaryBasisOnly>0&&<p className="module-help">Salary basis {money(salaryBasisOnly)} is included in the available-balance estimate but is not shown as a transaction because no matching salary credit exists in the income ledger.</p>}
+    {salaryBasisOnly>0&&<p className="module-help">Saved salary reference {money(salaryBasisOnly)} is not included in the available balance because no matching salary credit exists yet. When the salary actually arrives, record/import it as a Salary credit; the available balance will then increase automatically.</p>}
     <p className="module-help">Own-account transfers are excluded from income and expenses to avoid counting the same money twice. SIP purchases remain visible as investment cash outflows.</p>
    </section>
    <section className="finance-command-panel" style={{marginTop:16}}>
