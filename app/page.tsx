@@ -14,6 +14,7 @@ type AccountTransfer = { id:string; item_name:string; amount:number; direction:"
 const COLORS = ["#1d5fd6","#477dde","#719be5","#9db9ec","#c8d7f4"];
 const money = (n:number) => new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR",minimumFractionDigits:2,maximumFractionDigits:2}).format(n||0);
 const today = () => new Date().toLocaleDateString("en-CA");
+const currentMonth = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`; };
 function guessCategory(item:string) { return categorySuggestion(item).category || "Other"; }
 function categoryHint(item:string) { const result=categorySuggestion(item); if(!item.trim()) return "Enter the item name and we’ll suggest its category automatically."; return result.matched ? `Auto-suggested: ${result.category} · based on “${item.trim()}”. You can change it if needed.` : "Category isn’t clear from that item name, so we’ve selected Other. Add a little more detail for a better suggestion."; }
 export default function Home() {
@@ -27,7 +28,8 @@ export default function Home() {
  const [investmentAmountInput,setInvestmentAmountInput]=useState("");
  const [investmentHorizon,setInvestmentHorizon]=useState("5");
  const [investmentRisk,setInvestmentRisk]=useState("low");
- const [loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[error,setError]=useState(""),[notice,setNotice]=useState(""),[month,setMonth]=useState(today().slice(0,7)),[activeSection,setActiveSection]=useState("overview");
+ const [loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[error,setError]=useState(""),[notice,setNotice]=useState(""),[activeSection,setActiveSection]=useState("overview");
+ const month=currentMonth();
  const loadedUserId=useRef<string|null>(null);
  const user=session?.user;
  const load=useCallback(async(uid:string)=>{const client=supabase;if(!client)return;setLoading(true);setError("");try{
@@ -257,7 +259,7 @@ export default function Home() {
     <div className="dashboard-content">
      <section className="page-title-row">
       <div><h1>{({overview:"Monthly overview","add-expense":"Add an expense","finance-report":"Finance Manager Report",insights:"Spending insights",budget:"Budget Management","recurring-bills":"Recurring Bills",loans:"Loan Manager",savings:"Savings Goals",forecast:"Cash Flow Forecast","net-worth":"Net Worth Tracker","ai-finance":"AI Finance Manager",investments:"Savings & investments",transactions:"Transaction history",income:"Income & transfers","import-statement":"Import bank statement"} as Record<string,string>)[activeSection]}</h1><p>{activeSection==="overview"?(balance>=0?`${money(balance)} remains after ${money(monthTotal)} spent this month.`:`${money(Math.abs(balance))} is over the monthly salary amount.`):"Your personal finance workspace · "+month}</p></div>
-      <div className="overview-actions"><label>Month<input aria-label="Analytics month" type="month" className="field" value={month} onChange={e=>setMonth(e.target.value)}/></label></div>
+      <div className="overview-actions"><label>Current month<input aria-label="Current month" type="month" className="field" value={month} readOnly/></label></div>
      </section>
      {error&&<div role="alert" className="state-banner state-error">{error}</div>}
      {notice&&<div role="status" aria-live="polite" className="state-banner state-success"><span>{notice}</span><button aria-label="Dismiss message" onClick={()=>setNotice("")}><X size={15}/></button></div>}
