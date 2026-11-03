@@ -87,8 +87,8 @@ function parseRows(rows:unknown[][]):Tx[] {
 function parseStatementNumber(value:string):number|null {
  const raw=value.trim();
  if(!raw)return null;
- const negative=/^\\(.*\\)$/.test(raw)||/\\bDR$/i.test(raw)||raw.startsWith("-");
- const cleaned=raw.replace(/[₹,\\s]/g,"").replace(/[()]/g,"").replace(/(?:CR|DR)$/i,"").replace(/^-/,"");
+ const negative=/^\(.*\)$/.test(raw)||/\bDR$/i.test(raw)||raw.startsWith("-");
+ const cleaned=raw.replace(/[₹,\s]/g,"").replace(/[()]/g,"").replace(/(?:CR|DR)$/i,"").replace(/^-/,"");
  const n=Number(cleaned);
  return Number.isFinite(n)?(negative?-Math.abs(n):Math.abs(n)):null;
 }
