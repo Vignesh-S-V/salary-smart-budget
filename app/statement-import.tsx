@@ -170,34 +170,82 @@ async function parsePdf(file:File,onProgress?:(value:string)=>void):Promise<Tx[]
  return transactions;
 }
 export default function StatementImport({userId,onImported}:{userId:string;onImported?:()=>void}) {
- const [file,setFile]=useState<File|null>(null),[rows,setRows]=useState<Tx[]>([]),[busy,setBusy]=useState(false),[error,setError]=useState(""),[message,setMessage]=useState("");
- const counts=useMemo(()=>({debit:rows.filter(x=>x.direction==="debit").length,credit:rows.filter(x=>x.direction==="credit").length,review:rows.filter(x=>x.confidence==="review").length}),[rows]);
- async function preview(){if(!file)return;setBusy(true);setError("");setMessage("");try{
+ const [file,setFile]=useState<File|null>(null),[rows,setRows]=useState<Tx[]>([]),[busy,setBusy]=useState(false),[progress,setProgress]=useState(""),[error,setError]=useState(""),[message,setMessage]=useState("");
+ const counts=useMemo(()=>({debit:rows.filter(x=>x.direction==="debit").length,credit:rows.filter(x=>x.direction==="credit").length,transfers:rows.filter(x=>x.direction.startsWith("transfer_")).length,review:rows.filter(x=>x.confidence==="review").length}),[rows]);
+ const reconciliation=useMemo(()=>reconcileStatementRows(rows),[rows]);
+ async function preview(){if(!file)return;setBusy(true);setError("");setMessage("");setProgress("Preparing file…");try{
   let parsed:Tx[]=[];
-  if(/\.pdf$/i.test(file.name))parsed=await parsePdf(file);
+  if(/\\.pdf$/i.test(file.name))parsed=await parsePdf(file,setProgress);
   else {const wb=XLSX.read(await file.arrayBuffer(),{type:"array",cellDates:true});const sheet=wb.Sheets[wb.SheetNames[0]];parsed=parseRows(XLSX.utils.sheet_to_json(sheet,{header:1,raw:true}) as unknown[][]);}
-  if(!parsed.length)throw new Error("No transaction rows detected. Check that the file contains selectable text or a clear Date/Description/Debit/Credit table.");
+  if(!parsed.length)throw new Error("No transaction rows detected. The PDF must contain the Date, Particulars, Deposits, Withdrawals and Balance table. Scanned PDFs use OCR; low-quality scans may still need manual review.");
   setRows(parsed);
- }catch(e){setError(e instanceof Error?e.message:"Could not read this file.");}finally{setBusy(false);}}
+ }catch(e){setError(e instanceof Error?e.message:"Could not read this file.");}finally{setBusy(false);setProgress("");}}
  function edit(i:number,patch:Partial<Tx>){setRows(prev=>prev.map((r,n)=>n===i?{...r,...patch}:r));}
  async function importRows(){
-  if(!supabase||!rows.length)return;setBusy(true);setError("");setMessage("");
+  if(!supabase||!rows.length||!file)return;setBusy(true);setError("");setMessage("");setProgress("Checking duplicates…");
+  let batchId:string|null=null;
   try{
    const {data:{user},error:authError}=await supabase.auth.getUser();
    if(authError||!user||user.id!==userId)throw new Error("Your login session could not be verified. Sign in again.");
-   const candidates=rows.filter(r=>r.direction==="debit"&&r.date&&r.description.trim()&&r.amount>0);
-   const dates=[...new Set(candidates.map(x=>x.date))];
-   const existing=dates.length?await supabase.from("expenses").select("spent_at,amount,item_name").eq("user_id",user.id).in("spent_at",dates):{data:[],error:null};
-   if(existing.error)throw existing.error;
-   const normalize=(value:string)=>value.normalize("NFKC").toLowerCase().replace(/[^a-z0-9]+/g," ").trim().replace(/\s+/g," ");
-   const known=new Set((existing.data||[]).map((x:any)=>[x.spent_at,Number(x.amount).toFixed(2),normalize(String(x.item_name))].join("|")));
-   const unique=candidates.filter(x=>{const key=[x.date,x.amount.toFixed(2),normalize(x.description)].join("|");if(known.has(key))return false;known.add(key);return true;});
-   const payload=unique.map(x=>({user_id:user.id,item_name:x.description.trim().slice(0,240),amount:x.amount,quantity:1,category_name:CATEGORIES.includes(x.category)?x.category:"Other",spent_at:x.date,notes:"Imported from "+(file?.name||"statement")}));
-   if(payload.length){const {error:insertError}=await supabase.from("expenses").insert(payload);if(insertError)throw insertError;}
-   const credits=rows.filter(x=>x.direction==="credit").length;
-   setMessage(`Imported ${payload.length} debit transactions. Skipped ${candidates.length-payload.length} possible duplicates. ${credits} credit rows were not imported because this app's current ledger has no income-transaction table.`);
+   const candidates=rows.filter(r=>r.date&&r.description.trim()&&r.amount>0);
+   if(!candidates.length)throw new Error("There are no valid transactions to import.");
+   const dateValues=candidates.map(x=>x.date).sort();
+   const startDate=dateValues[0],endDate=dateValues[dateValues.length-1];
+   const hashBuffer=await crypto.subtle.digest("SHA-256",await file.arrayBuffer());
+   const fileHash=Array.from(new Uint8Array(hashBuffer)).map(x=>x.toString(16).padStart(2,"0")).join("");
+   const {data:priorBatch,error:batchCheckError}=await supabase.from("statement_import_batches").select("id,status").eq("user_id",user.id).eq("file_sha256",fileHash).maybeSingle();
+   if(batchCheckError)throw batchCheckError;
+   if(priorBatch?.status==="imported")throw new Error("This exact file has already been imported. Upload a different statement file or remove the previous import batch first.");
+   const [existingExpenses,existingIncome,existingTransfers]=await Promise.all([
+    supabase.from("expenses").select("spent_at,amount,item_name").eq("user_id",user.id).gte("spent_at",startDate).lte("spent_at",endDate),
+    supabase.from("income_transactions").select("received_at,amount,item_name,income_type").eq("user_id",user.id).gte("received_at",startDate).lte("received_at",endDate),
+    supabase.from("account_transfers").select("transferred_at,amount,item_name,direction").eq("user_id",user.id).gte("transferred_at",startDate).lte("transferred_at",endDate)
+   ]);
+   const lookupError=existingExpenses.error||existingIncome.error||existingTransfers.error;
+   if(lookupError)throw lookupError;
+   const known=new Set<string>();
+   (existingExpenses.data||[]).forEach((x:any)=>known.add(transactionFingerprint(x.spent_at,x.amount,x.item_name,"expense")));
+   (existingIncome.data||[]).forEach((x:any)=>known.add(transactionFingerprint(x.received_at,x.amount,x.item_name,"income:"+x.income_type)));
+   (existingTransfers.data||[]).forEach((x:any)=>known.add(transactionFingerprint(x.transferred_at,x.amount,x.item_name,"transfer:"+x.direction)));
+   const expenseRows:any[]=[],incomeRows:any[]=[],transferRows:any[]=[];
+   let duplicates=0;
+   for(const row of candidates){
+    let kind="",target:"expense"|"income"|"transfer";
+    if(row.direction==="debit"){kind="expense";target="expense";}
+    else if(row.direction==="credit"){const incomeType=inferIncomeType(row.description);kind="income:"+incomeType;target="income";}
+    else {kind="transfer:"+(row.direction==="transfer_in"?"incoming":"outgoing");target="transfer";}
+    const fingerprint=transactionFingerprint(row.date,row.amount,row.description,kind);
+    if(known.has(fingerprint)){duplicates++;continue;}
+    known.add(fingerprint);
+    if(target==="expense")expenseRows.push({user_id:user.id,item_name:row.description.trim().slice(0,240),amount:row.amount,quantity:1,category_name:CATEGORIES.includes(row.category)?row.category:"Other",spent_at:row.date,notes:"Imported from "+file.name,import_batch_id:null});
+    else if(target==="income")incomeRows.push({user_id:user.id,item_name:row.description.trim().slice(0,240),amount:row.amount,income_type:kind.slice("income:".length),received_at:row.date,notes:"Imported from "+file.name,import_batch_id:null});
+    else transferRows.push({user_id:user.id,item_name:row.description.trim().slice(0,240),amount:row.amount,direction:row.direction==="transfer_in"?"incoming":"outgoing",transferred_at:row.date,reference:null,notes:"Imported from "+file.name,import_batch_id:null});
+   }
+   const rec=reconciliation;
+   const {data:batch,error:batchError}=await supabase.from("statement_import_batches").insert({
+    user_id:user.id,file_name:file.name.slice(0,255),file_sha256:fileHash,statement_start:startDate,statement_end:endDate,
+    total_rows:candidates.length,expense_rows:expenseRows.length,income_rows:incomeRows.length,transfer_rows:transferRows.length,duplicate_rows:duplicates,
+    opening_balance:rec.available?rec.openingBalance:null,closing_balance:rec.available?rec.closingBalance:null,
+    calculated_closing_balance:rec.available?rec.calculatedClosingBalance:null,balance_difference:rec.available?rec.difference:null,
+    reconciliation_status:!rec.available?"not_available":rec.matched?"matched":"mismatch",status:"processing"
+   }).select("id").single();
+   if(batchError)throw batchError;
+   batchId=batch.id;
+   const setBatchId=(items:any[])=>items.map(x=>({...x,import_batch_id:batchId}));
+   const insertChunks=async(table:string,items:any[])=>{for(let from=0;from<items.length;from+=500){const {error}=await supabase.from(table).insert(items.slice(from,from+500));if(error)throw error;}};
+   setProgress("Saving expenses, income and transfers…");
+   await insertChunks("expenses",setBatchId(expenseRows));
+   await insertChunks("income_transactions",setBatchId(incomeRows));
+   await insertChunks("account_transfers",setBatchId(transferRows));
+   const {error:finishError}=await supabase.from("statement_import_batches").update({status:"imported"}).eq("id",batchId).eq("user_id",user.id);
+   if(finishError)throw finishError;
+   const recMessage=!rec.available?"Balance reconciliation unavailable (no readable running balance sequence).":rec.matched?"Running balance reconciled.":`Running balance difference: ${money(Math.abs(rec.difference||0))}. Review before relying on the statement totals.`;
+   setMessage(`Imported ${expenseRows.length} expenses, ${incomeRows.length} income credits and ${transferRows.length} own-account transfers. Skipped ${duplicates} duplicates. ${recMessage}`);
    setRows([]);setFile(null);onImported?.();
-  }catch(e){setError(e instanceof Error?e.message:"Import failed.");}finally{setBusy(false);}
+  }catch(e){
+   if(batchId&&supabase){await supabase.from("statement_import_batches").update({status:"partial_error"}).eq("id",batchId).eq("user_id",userId);}
+   setError(e instanceof Error?e.message:"Import failed. Check the statement batch status before retrying.");
+  }finally{setBusy(false);setProgress("");}
  }
  return <section className="panel" style={{padding:24,marginBottom:20}}>
   <div className="panel-heading"><div><h2>Import bank statement</h2><p>Upload Excel or PDF. Transactions are saved to the account currently signed in.</p></div></div>
