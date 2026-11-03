@@ -208,9 +208,9 @@ export default function StatementImport({userId,onImported}:{userId:string;onImp
     fetchExistingPages(supabase.from("account_transfers").select("transferred_at,amount,item_name,direction").eq("user_id",user.id).gte("transferred_at",startDate).lte("transferred_at",endDate).order("transferred_at",{ascending:false}).order("id",{ascending:false}))
    ]);
    const known=new Set<string>();
-   (existingExpenses.data||[]).forEach((x:any)=>known.add(transactionFingerprint(x.spent_at,x.amount,x.item_name,"expense")));
-   (existingIncome.data||[]).forEach((x:any)=>known.add(transactionFingerprint(x.received_at,x.amount,x.item_name,"income:"+x.income_type)));
-   (existingTransfers.data||[]).forEach((x:any)=>known.add(transactionFingerprint(x.transferred_at,x.amount,x.item_name,"transfer:"+x.direction)));
+   existingExpenses.forEach((x:any)=>known.add(transactionFingerprint(x.spent_at,x.amount,x.item_name,"expense")));
+   existingIncome.forEach((x:any)=>known.add(transactionFingerprint(x.received_at,x.amount,x.item_name,"income:"+x.income_type)));
+   existingTransfers.forEach((x:any)=>known.add(transactionFingerprint(x.transferred_at,x.amount,x.item_name,"transfer:"+x.direction)));
    const expenseRows:any[]=[],incomeRows:any[]=[],transferRows:any[]=[];
    let duplicates=0;
    for(const row of candidates){
