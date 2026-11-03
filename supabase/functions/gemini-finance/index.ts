@@ -49,7 +49,7 @@ Deno.serve(async (req: Request) => {
     if (!question) return json({ error: "Enter a finance question." }, 400, origin);
     if (question.length > 1000) return json({ error: "Question is too long. Keep it under 1,000 characters." }, 400, origin);
     const requestedMonth = typeof body.month === "string" ? body.month : new Date().toISOString().slice(0, 7);
-    const monthMatch = requestedMonth.match(/^(\\d{4})-(\\d{2})$/);
+    const monthMatch = requestedMonth.match(/^(\d{4})-(\d{2})$/);
     if (!monthMatch || Number(monthMatch[2]) < 1 || Number(monthMatch[2]) > 12 || Number(monthMatch[1]) < 2000 || Number(monthMatch[1]) > 2100) {
       return json({ error: "Month must be a valid YYYY-MM value." }, 400, origin);
     }
@@ -83,7 +83,7 @@ Deno.serve(async (req: Request) => {
       supabase.from("loans").select("lender,loan_type,principal_amount,outstanding_balance,annual_interest_rate,emi_amount,next_due_date,status").eq("user_id", userId).eq("status", "active"),
       supabase.from("savings_goals").select("name,target_amount,current_amount,target_date,status").eq("user_id", userId),
       supabase.from("net_worth_items").select("entry_type,name,current_value,as_of_date").eq("user_id", userId).order("as_of_date", { ascending: false }),
-      supabase.from("income_transactions").select("item_name,amount,income_type,received_at").eq("user_id", userId).gte("received_at", fromDate).lte("received_at", monthEnd).order("received_at", { ascending: false }).limit(20000),
+      supabase.from("income_transactions").select("item_name,amount,income_type,received_at,notes").eq("user_id", userId).gte("received_at", fromDate).lte("received_at", monthEnd).order("received_at", { ascending: false }).limit(20000),
       supabase.from("account_transfers").select("item_name,amount,direction,transferred_at").eq("user_id", userId).gte("transferred_at", fromDate).lte("transferred_at", monthEnd).order("transferred_at", { ascending: false }).limit(20000),
     ]);
     const queryError = [salaryRes, budgetsRes, billsRes, loansRes, goalsRes, worthRes, incomeRes, transfersRes].find((r) => r.error);
@@ -151,6 +151,24 @@ Deno.serve(async (req: Request) => {
       salary: Math.round(v.salary * 100) / 100, other: Math.round(v.other * 100) / 100,
       refunds: Math.round(v.refunds * 100) / 100, transactions: v.count,
     }));
+    const selectedMonthIncome = incomeSummary.find((x) => x.month === requestedMonth) || {
+      month: requestedMonth, total: 0, salary: 0, other: 0, refunds: 0, transactions: 0,
+    };
+    const importedSalaryAmount = Number(selectedMonthIncome.salary) || 0;
+    const salaryBasis = importedSalaryAmount > 0
+      ? importedSalaryAmount
+      : Number(salaryRes.data?.[0]?.monthly_salary || 0);
+    const otherCreditsTotal = (Number(selectedMonthIncome.other) || 0) + (Number(selectedMonthIncome.refunds) || 0);
+    const totalMonthlyIncome = salaryBasis + otherCreditsTotal;
+    const selectedMonthOtherCredits = (incomeRes.data || [])
+      .filter((row) => row.received_at.slice(0, 7) === requestedMonth && row.income_type !== "salary")
+      .map((row) => ({
+        source: row.item_name || "Other income",
+        type: row.notes?.match(/One-time income type:\\s*([^;]+)/i)?.[1]
+          || (row.income_type === "refund" ? "Refund" : "Other income"),
+        amount: Number(row.amount) || 0,
+        receivedAt: row.received_at,
+      }));
     const transferSummary = (transfersRes.data || []).reduce((summary: Record<string, number>, row) => {
       const key = row.direction === "incoming" ? "incoming" : "outgoing";
       summary[key] = (summary[key] || 0) + (Number(row.amount) || 0);
@@ -168,7 +186,8 @@ Deno.serve(async (req: Request) => {
       expenseHistoryByMonth: expenseSummary,
       expenseTotalAcrossCoverage: Math.round(totalExpense * 100) / 100,
       incomeHistoryByMonth: incomeSummary,
-      selectedMonthIncome: incomeSummary.find((x) => x.month === requestedMonth) || { month: requestedMonth, total: 0, salary: 0, other: 0, refunds: 0, transactions: 0 },
+      selectedMonthIncome: { ...selectedMonthIncome, salaryBasis, otherCreditsTotal, totalMonthlyIncome },
+      selectedMonthOtherCredits,
       accountTransfers: {
         incomingTotal: Math.round((transferSummary.incoming || 0) * 100) / 100,
         outgoingTotal: Math.round((transferSummary.outgoing || 0) * 100) / 100,
@@ -203,6 +222,7 @@ Deno.serve(async (req: Request) => {
       "Show calculations and assumptions for numeric conclusions. Distinguish recorded expenses from actual bank balance and recorded net worth from verified net worth.",
       "Transfers between the user’s own accounts are not income or expense. Use transfer totals only when asked about transfers.",
       "Imported salary credits replace the salary-history estimate for that month; do not add both and double-count salary. Other income and refunds are separate credits.",
+      "For the selected month, use selectedMonthIncome.totalMonthlyIncome as total income. It equals salaryBasis plus otherCreditsTotal. When asked what makes up other credits, use selectedMonthOtherCredits. Do not mistake the income transaction total for the full total when salary is stored only in salary history.",
       "Do not claim the dataset is complete beyond the stated expense and income coverage. Do not provide guaranteed investment returns or personalized regulated investment instructions.",
       "If the question is unrelated to the user's finance records, explain that this assistant is for personal finance questions.",
     ].join(" ");
