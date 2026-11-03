@@ -89,7 +89,8 @@ export default function Home() {
  const previousRecordedIncome=previousTransactionIncome+previousSalaryHistoryIncome;
  const previousRecordedExpenses=expenses.filter(x=>x.spent_at<monthStart).reduce((sum,x)=>sum+Number(x.amount),0);
  const carryForwardBalance=previousRecordedIncome-previousRecordedExpenses;
- const trackedFunds=monthlyIncome+carryForwardBalance;
+ const actualMonthIncome=importedSalary+otherIncome;
+ const trackedFunds=actualMonthIncome+carryForwardBalance;
  const balance=trackedFunds-monthTotal;
  const daily=useMemo(()=>{const map=new Map<string,number>();currentExpenses.forEach(e=>map.set(e.spent_at,(map.get(e.spent_at)||0)+Number(e.amount)));return Array.from(map.entries()).sort((a,b)=>a[0].localeCompare(b[0])).map(([date,total])=>({date:date.slice(5),total}));},[currentExpenses]);
  const byCategory=useMemo(()=>{const map=new Map<string,number>();currentExpenses.forEach(e=>map.set(e.category_name,(map.get(e.category_name)||0)+Number(e.amount)));return Array.from(map.entries()).map(([name,value])=>({name,value})).sort((a,b)=>b.value-a.value);},[currentExpenses]);
