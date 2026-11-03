@@ -3,8 +3,9 @@
 import { useMemo, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import * as XLSX from "xlsx";
+import { classifyStatementDirection, inferIncomeType, reconcileStatementRows, transactionFingerprint } from "@/lib/statement-utils.mjs";
 
-type Tx = { date: string; description: string; amount: number; direction: "debit" | "credit"; category: string; confidence: "high" | "review" };
+type Tx = { date: string; description: string; amount: number; direction: "debit" | "credit" | "transfer_out" | "transfer_in"; category: string; balance: number | null; confidence: "high" | "review" };
 const CATEGORIES = ["Groceries","Medical","Transport","Bills","Loan","Food & Drinks","Personal Care","Shopping","Home & Essentials","Education","Entertainment","Investment & Savings","Other"];
 const dateISO = (v: unknown): string | null => {
   if (v instanceof Date && !Number.isNaN(v.getTime())) return v.toISOString().slice(0,10);
@@ -66,16 +67,20 @@ function parseRows(rows:unknown[][]):Tx[] {
  const debit=headerIndex(headers,[/^debit$|withdrawal|paid out|dr amount/]);
  const credit=headerIndex(headers,[/^credit$|deposit|paid in|cr amount/]);
  const amount=headerIndex(headers,[/^amount$|txn amount|transaction amount/]);
+ const balance=headerIndex(headers,[/^balance$|available balance|running balance|ledger balance/]);
  const out:Tx[]=[];
  for(const row of rows.slice(headerAt<0?0:headerAt+1)){
    const date=dateISO(di>=0?row[di]:row.find(v=>dateISO(v)));
    const description=String(desc>=0?row[desc]??"":row.filter(v=>!dateISO(v)).map(v=>String(v??"")).filter(Boolean).join(" ")).trim();
-   const num=(v:unknown)=>{const n=Number(String(v??"").replace(/[₹,\s]/g,"").replace(/[()]/g,""));return Number.isFinite(n)?Math.abs(n):0;};
-   let d=debit>=0?num(row[debit]):0, c=credit>=0?num(row[credit]):0;
-   if(debit<0&&credit<0&&amount>=0){const a=num(row[amount]);const raw=String(row[amount]??""); if(/\b(cr|credit)\b/i.test(raw))c=a;else d=a;}
-   if(!date||!description||(!d&&!c))continue;
-   const direction=c>0&&d===0?"credit":"debit", value=direction==="credit"?c:d;
-   out.push({date,description,amount:value,direction,category:category(description),confidence:di>=0&&desc>=0&&(debit>=0||credit>=0)&&categorySuggestion(description).matched?"high":"review"});
+   const rawNum=(v:unknown):number|null=>{const raw=String(v??"").trim();if(!raw)return null;const n=Number(raw.replace(/[₹,\\s]/g,"").replace(/[()]/g,""));return Number.isFinite(n)?Math.abs(n):null;};
+   const d=debit>=0?(rawNum(row[debit])??0):0;
+   const c=credit>=0?(rawNum(row[credit])??0):0;
+   let debitValue=d,creditValue=c;
+   if(debit<0&&credit<0&&amount>=0){const a=rawNum(row[amount])??0;const raw=String(row[amount]??"");if(/\\b(cr|credit)\\b/i.test(raw))creditValue=a;else debitValue=a;}
+   if(!date||!description||(!debitValue&&!creditValue)||(debitValue>0&&creditValue>0))continue;
+   const bankDirection=creditValue>0?"credit":"debit";
+   const direction=classifyStatementDirection(description,bankDirection);
+   out.push({date,description,amount:creditValue>0?creditValue:debitValue,direction,category:category(description),balance:balance>=0?rawNum(row[balance]):null,confidence:di>=0&&desc>=0&&(debit>=0||credit>=0)&&categorySuggestion(description).matched?"high":"review"});
  }
  return out;
 }
@@ -84,61 +89,83 @@ function parseBankAmount(value:string):number {
  const n=Number(cleaned);
  return Number.isFinite(n)?Math.abs(n):0;
 }
-async function parsePdf(file:File):Promise<Tx[]> {
+function parsePositionedBankItems(items:Array<{x:number;y:number;s:string}>):Tx[] {
+ const headerWords=["date","particulars","deposits","withdrawals","balance"];
+ const yGroups=new Map<number,Array<{x:number;y:number;s:string}>>();
+ for(const it of items){const y=Math.round(it.y);const a=yGroups.get(y)||[];a.push(it);yGroups.set(y,a);}
+ let headerY:number|undefined,anchors:number[]=[];
+ for(const [y,line] of yGroups){
+  const normalized=line.map(v=>v.s.toLowerCase().replace(/[^a-z]/g,""));
+  if(headerWords.every(w=>normalized.some(v=>v===w))){
+   headerY=y;anchors=headerWords.map(w=>line.find(v=>v.s.toLowerCase().replace(/[^a-z]/g,"")===w)!.x);break;
+  }
+ }
+ if(headerY===undefined||anchors.length!==5)return [];
+ const bounds=[-Infinity,...anchors.slice(0,4).map((x,i)=>(x+anchors[i+1])/2),Infinity];
+ const lines=[...yGroups.entries()].filter(([y])=>y>headerY!).sort((a,b)=>a[0]-b[0]);
+ const transactions:Tx[]=[];
+ let last:Tx|undefined;
+ for(const [,line] of lines){
+  const cols=["","","","",""];
+  for(const it of line){
+   const col=anchors.findIndex((x,i)=>it.x>=bounds[i]&&it.x<bounds[i+1]);
+   const target=col<0?4:col;cols[target]=(cols[target]+" "+it.s).trim();
+  }
+  const normalizedDate=dateISO(cols[0].trim().replace(/\\s+/g,""));
+  const particulars=cols[1].trim().replace(/\\s+/g," ");
+  const deposit=parseBankAmount(cols[2]),withdrawal=parseBankAmount(cols[3]);
+  const balanceText=cols[4].trim();
+  const balance=balanceText?parseBankAmount(balanceText):null;
+  if(normalizedDate&&particulars&&(deposit>0||withdrawal>0)&&!(deposit>0&&withdrawal>0)){
+   const bankDirection=deposit>0?"credit":"debit";
+   const direction=classifyStatementDirection(particulars,bankDirection);
+   last={date:normalizedDate,description:particulars,amount:deposit>0?deposit:withdrawal,direction,category:category(particulars),balance,confidence:categorySuggestion(particulars).matched?"high":"review"};
+   transactions.push(last);
+  } else if(last&&!normalizedDate&&particulars&&!deposit&&!withdrawal&&!/opening balance/i.test(particulars)){
+   last.description=(last.description+" "+particulars).trim();
+   last.category=category(last.description);
+   last.confidence=categorySuggestion(last.description).matched?"high":"review";
+  }
+ }
+ return transactions;
+}
+async function parsePdf(file:File,onProgress?:(value:string)=>void):Promise<Tx[]> {
  const pdfjs=await import("pdfjs-dist/legacy/build/pdf.mjs");
  pdfjs.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/legacy/build/pdf.worker.mjs`;
  const data=new Uint8Array(await file.arrayBuffer());
  const pdf=await pdfjs.getDocument({data,useWorkerFetch:false,isEvalSupported:false}).promise;
  const transactions:Tx[]=[];
- const datePattern=/^(?:\\d{1,2}[\\/-]\\d{1,2}[\\/-]\\d{2,4}|\\d{4}-\\d{1,2}-\\d{1,2})$/;
  for(let p=1;p<=pdf.numPages;p++){
+  onProgress?.(`Reading PDF page ${p} of ${pdf.numPages}…`);
   const page=await pdf.getPage(p);
+  const viewport=page.getViewport({scale:1});
   const content=await page.getTextContent();
-  const items=(content.items as any[]).filter(x=>typeof x.str==="string"&&x.str.trim()).map(x=>({x:Number(x.transform?.[4]||0),y:Number(x.transform?.[5]||0),s:String(x.str).trim()}));
-  // Find the exact bank-statement table header. Ignore all account/profile text outside it.
-  const headerWords=["date","particulars","deposits","withdrawals","balance"];
-  let headerY:number|undefined;
-  let anchors:number[]=[];
-  const yGroups=new Map<number,typeof items>();
-  for(const it of items){const y=Math.round(it.y);const a=yGroups.get(y)||[];a.push(it);yGroups.set(y,a);}
-  for(const [y,line] of yGroups){
-   const normalized=line.map(v=>v.s.toLowerCase().replace(/[^a-z]/g,""));
-   if(headerWords.every(w=>normalized.some(v=>v===w))){
-    headerY=y;
-    anchors=headerWords.map(w=>line.find(v=>v.s.toLowerCase().replace(/[^a-z]/g,"")===w)!.x);
-    break;
-   }
+  const items=(content.items as any[]).filter(x=>typeof x.str==="string"&&x.str.trim()).map(x=>({x:Number(x.transform?.[4]||0),y:viewport.height-Number(x.transform?.[5]||0),s:String(x.str).trim()}));
+  let pageRows=parsePositionedBankItems(items);
+  if(!pageRows.length){
+   onProgress?.(`Scanned page detected. Running OCR on page ${p} of ${pdf.numPages}…`);
+   const canvas=document.createElement("canvas");
+   const renderViewport=page.getViewport({scale:2});
+   canvas.width=Math.ceil(renderViewport.width);canvas.height=Math.ceil(renderViewport.height);
+   const context=canvas.getContext("2d");
+   if(!context)throw new Error("Could not create a canvas for OCR.");
+   await page.render({canvasContext:context,viewport:renderViewport}).promise;
+   const tesseractUrl="https://esm.sh/tesseract.js@7.0.0";
+   // @ts-ignore Tesseract is fetched from the pinned CDN only when OCR is needed.
+   const tesseract=await import(/* webpackIgnore: true */ tesseractUrl);
+   const worker=await tesseract.createWorker("eng",1,{
+    workerPath:"https://cdn.jsdelivr.net/npm/tesseract.js@7.0.0/dist/worker.min.js",
+    corePath:"https://cdn.jsdelivr.net/npm/tesseract.js-core@6.0.0",
+    langPath:"https://tessdata.projectnaptha.com/4.0.0"
+   });
+   try{
+    const ocr=await worker.recognize(canvas);
+    const words=(ocr.data.words||[]).filter((w:any)=>w.text&&w.confidence>=25);
+    const ocrItems=words.map((w:any)=>({x:Number(w.bbox?.x0||0),y:Number(w.bbox?.y0||0),s:String(w.text).trim()}));
+    pageRows=parsePositionedBankItems(ocrItems);
+   }finally{await worker.terminate();}
   }
-  if(headerY===undefined||anchors.length!==5)continue;
-  const bounds=[-Infinity,...anchors.slice(0,4).map((x,i)=>(x+anchors[i+1])/2),Infinity];
-  const lines=[...yGroups.entries()].filter(([y])=>y<headerY!).sort((a,b)=>b[0]-a[0]);
-  let last:Tx|undefined;
-  for(const [y,line] of lines){
-   const cols=["","","","",""];
-   for(const it of line){
-    if(y>=headerY)continue;
-    let col=anchors.findIndex((x,i)=>it.x>=bounds[i]&&it.x<bounds[i+1]);
-    if(col<0)col=4;
-    cols[col]=(cols[col]+" "+it.s).trim();
-   }
-   const dateText=cols[0].trim().replace(/\\s+/g,"");
-   const normalizedDate=dateISO(dateText);
-   const particulars=cols[1].trim().replace(/\\s+/g," ");
-   const deposit=parseBankAmount(cols[2]);
-   const withdrawal=parseBankAmount(cols[3]);
-   // Balance column is intentionally ignored and never imported.
-   if(normalizedDate && particulars && (deposit>0||withdrawal>0)){
-    const direction=deposit>0&&withdrawal===0?"credit":"debit";
-    const amount=direction==="credit"?deposit:withdrawal;
-    last={date:normalizedDate,description:particulars,amount,direction,category:category(particulars),confidence:categorySuggestion(particulars).matched?"high":"review"};
-    transactions.push(last);
-   } else if(last && !normalizedDate && particulars && !deposit && !withdrawal && !/opening balance/i.test(particulars)){
-    // Join wrapped narration lines belonging to the preceding dated transaction.
-    last.description=(last.description+" "+particulars).trim();
-    last.category=category(last.description);
-    last.confidence=categorySuggestion(last.description).matched?"high":"review";
-   }
-  }
+  transactions.push(...pageRows);
  }
  return transactions;
 }
