@@ -7,7 +7,7 @@ import { Area, AreaChart, CartesianGrid, Pie, PieChart, Cell, ResponsiveContaine
 import { ArrowDownRight, ArrowUpRight, BadgeIndianRupee, CalendarDays, Check, ChevronDown, CircleHelp, CreditCard, LayoutDashboard, LogOut, Plus, RefreshCw, ShieldCheck, Sparkles, Wallet, X } from "lucide-react";
 
 type Salary = { id:string; monthly_salary:number; effective_from:string; note:string|null };
-type Expense = { id:string; item_name:string; amount:number; quantity:number; category_name:string; spent_at:string; notes:string|null };
+type Expense = { id:string; item_name:string; amount:number; quantity:number; category_name:string; spent_at:string; notes:string|null; import_batch_id?:string|null };\ntype IncomeTransaction = { id:string; item_name:string; amount:number; income_type:"salary"|"other"|"refund"; received_at:string; notes:string|null; import_batch_id:string|null };\ntype AccountTransfer = { id:string; item_name:string; amount:number; direction:"incoming"|"outgoing"; transferred_at:string; notes:string|null; import_batch_id:string|null };
 const COLORS = ["#1d5fd6","#477dde","#719be5","#9db9ec","#c8d7f4"];
 const CATEGORIES = ["Groceries","Medical","Transport","Bills","Loan","Food & Drinks","Personal Care","Shopping","Home & Essentials","Education","Entertainment","Investment & Savings","Other"];
 const money = (n:number) => new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR",minimumFractionDigits:2,maximumFractionDigits:2}).format(n||0);
@@ -53,7 +53,7 @@ function guessCategory(item:string) { return categorySuggestion(item).category |
 function categoryHint(item:string) { const result=categorySuggestion(item); if(!item.trim()) return "Enter the item name and we’ll suggest its category automatically."; return result.matched ? `Auto-suggested: ${result.category} · based on “${item.trim()}”. You can change it if needed.` : "Category isn’t clear from that item name, so we’ve selected Other. Add a little more detail for a better suggestion."; }
 export default function Home() {
  const [session,setSession]=useState<any>(null),[email,setEmail]=useState(""),[password,setPassword]=useState(""),[signup,setSignup]=useState(false);
- const [salary,setSalary]=useState<Salary|null>(null),[salaryHistory,setSalaryHistory]=useState<Salary[]>([]),[expenses,setExpenses]=useState<Expense[]>([]);
+ const [salary,setSalary]=useState<Salary|null>(null),[salaryHistory,setSalaryHistory]=useState<Salary[]>([]),[expenses,setExpenses]=useState<Expense[]>([]),[incomes,setIncomes]=useState<IncomeTransaction[]>([]),[transfers,setTransfers]=useState<AccountTransfer[]>([]);
  const [salaryInput,setSalaryInput]=useState(""),[salaryDate,setSalaryDate]=useState(today()),[showSalary,setShowSalary]=useState(false),[salaryAction,setSalaryAction]=useState<"add"|"change"|null>(null);
  const [item,setItem]=useState(""),[amount,setAmount]=useState(""),[qty,setQty]=useState("1"),[category,setCategory]=useState("Groceries"),[spentAt,setSpentAt]=useState(today()),[notes,setNotes]=useState("");
  const [categories,setCategories]=useState<string[]>(CATEGORIES),[newCategory,setNewCategory]=useState("");
@@ -64,24 +64,41 @@ export default function Home() {
  const [loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[error,setError]=useState(""),[notice,setNotice]=useState(""),[month,setMonth]=useState(today().slice(0,7)),[activeSection,setActiveSection]=useState("overview");
  const loadedUserId=useRef<string|null>(null);
  const user=session?.user;
- const load=useCallback(async(uid:string)=>{const client=supabase;if(!client)return;setLoading(true);setError("");try{const [s,c]=await Promise.all([client.from("salary_history").select("*").eq("user_id",uid).order("effective_from",{ascending:false}),client.from("expense_categories").select("name").eq("user_id",uid).order("name")]);if(s.error||c.error)throw s.error||c.error;const pageSize=1000;let all:Expense[]=[];for(let from=0;;from+=pageSize){const {data,error}=await client.from("expenses").select("*").eq("user_id",uid).order("spent_at",{ascending:false}).order("id",{ascending:false}).range(from,from+pageSize-1);if(error)throw error;const batch=(data||[]) as Expense[];all=all.concat(batch);if(batch.length<pageSize)break;}const ss=(s.data||[]) as Salary[];setSalaryHistory(ss);setSalary(ss[0]||null);const corrected=all.map(x=>{const guess=categorySuggestion(x.item_name);if(guess.matched&&CATEGORIES.includes(x.category_name))return {...x,category_name:guess.category};return x;});setExpenses(corrected);for(const x of corrected.filter((x,i)=>x.category_name!==all[i].category_name)){const {error}=await client.from("expenses").update({category_name:x.category_name}).eq("id",x.id).eq("user_id",uid);if(error)throw error;}const saved=(c.data||[]).map((x:any)=>x.name);setCategories([...new Set([...CATEGORIES,...saved])]);}catch(err){setError(err instanceof Error?err.message:"Unable to load all account transactions.");}finally{setLoading(false);}},[]);
- useEffect(()=>{ if(!supabase){setError("Supabase configuration is missing. Add the public project URL and publishable key.");setLoading(false);return;} supabase.auth.getSession().then(({data})=>{setSession(data.session);if(data.session?.user){loadedUserId.current=data.session.user.id;load(data.session.user.id);}else{loadedUserId.current=null;setLoading(false);}});const {data:{subscription}}=supabase.auth.onAuthStateChange((_event,s)=>{setSession(s);if(s?.user){if(loadedUserId.current!==s.user.id){loadedUserId.current=s.user.id;load(s.user.id);}}else{loadedUserId.current=null;setSalary(null);setSalaryHistory([]);setExpenses([]);setLoading(false);}});return()=>subscription.unsubscribe();},[load]);
+ const load=useCallback(async(uid:string)=>{const client=supabase;if(!client)return;setLoading(true);setError("");try{
+  const [s,c]=await Promise.all([client.from("salary_history").select("*").eq("user_id",uid).order("effective_from",{ascending:false}),client.from("expense_categories").select("name").eq("user_id",uid).order("name")]);
+  if(s.error||c.error)throw s.error||c.error;
+  const pageSize=1000;
+  const fetchAll=async(table:string,orderColumn:string)=>{let all:any[]=[];for(let from=0;;from+=pageSize){const {data,error}=await client.from(table).select("*").eq("user_id",uid).order(orderColumn,{ascending:false}).order("id",{ascending:false}).range(from,from+pageSize-1);if(error)throw error;const batch=data||[];all=all.concat(batch);if(batch.length<pageSize)break;}return all;};
+  const [allExpenses,allIncome,allTransfers]=await Promise.all([fetchAll("expenses","spent_at"),fetchAll("income_transactions","received_at"),fetchAll("account_transfers","transferred_at")]);
+  const ss=(s.data||[]) as Salary[];setSalaryHistory(ss);setSalary(ss[0]||null);
+  const corrected=(allExpenses as Expense[]).map(x=>{const guess=categorySuggestion(x.item_name);if(guess.matched&&CATEGORIES.includes(x.category_name))return {...x,category_name:guess.category};return x;});
+  setExpenses(corrected);setIncomes(allIncome as IncomeTransaction[]);setTransfers(allTransfers as AccountTransfer[]);
+  for(const x of corrected.filter((x,i)=>x.category_name!==(allExpenses as Expense[])[i].category_name)){const {error}=await client.from("expenses").update({category_name:x.category_name}).eq("id",x.id).eq("user_id",uid);if(error)throw error;}
+  const saved=(c.data||[]).map((x:any)=>x.name);setCategories([...new Set([...CATEGORIES,...saved])]);
+ }catch(err){setError(err instanceof Error?err.message:"Unable to load your complete finance ledger.");}finally{setLoading(false);}},[]);
+ useEffect(()=>{ if(!supabase){setError("Supabase configuration is missing. Add the public project URL and publishable key.");setLoading(false);return;} supabase.auth.getSession().then(({data})=>{setSession(data.session);if(data.session?.user){loadedUserId.current=data.session.user.id;load(data.session.user.id);}else{loadedUserId.current=null;setLoading(false);}});const {data:{subscription}}=supabase.auth.onAuthStateChange((_event,s)=>{setSession(s);if(s?.user){if(loadedUserId.current!==s.user.id){loadedUserId.current=s.user.id;load(s.user.id);}}else{loadedUserId.current=null;setSalary(null);setSalaryHistory([]);setExpenses([]);setIncomes([]);setTransfers([]);setLoading(false);}});return()=>subscription.unsubscribe();},[load]);
  const currentExpenses=useMemo(()=>expenses.filter(e=>e.spent_at.startsWith(month)),[expenses,month]);
+ const currentIncomes=useMemo(()=>incomes.filter(e=>e.received_at.startsWith(month)),[incomes,month]);
+ const currentTransfers=useMemo(()=>transfers.filter(e=>e.transferred_at.startsWith(month)),[transfers,month]);
  const monthTotal=currentExpenses.reduce((a,e)=>a+Number(e.amount),0);
- const salaryNum=Number(salary?.monthly_salary||0), balance=salaryNum-monthTotal;
+ const salaryNum=Number(salary?.monthly_salary||0);
+ const importedSalary=currentIncomes.filter(x=>x.income_type==="salary").reduce((sum,x)=>sum+Number(x.amount),0);
+ const otherIncome=currentIncomes.filter(x=>x.income_type!=="salary").reduce((sum,x)=>sum+Number(x.amount),0);
+ const monthlyIncome=(importedSalary>0?importedSalary:salaryNum)+otherIncome;
+ const balance=monthlyIncome-monthTotal;
  const daily=useMemo(()=>{const map=new Map<string,number>();currentExpenses.forEach(e=>map.set(e.spent_at,(map.get(e.spent_at)||0)+Number(e.amount)));return Array.from(map.entries()).sort((a,b)=>a[0].localeCompare(b[0])).map(([date,total])=>({date:date.slice(5),total}));},[currentExpenses]);
  const byCategory=useMemo(()=>{const map=new Map<string,number>();currentExpenses.forEach(e=>map.set(e.category_name,(map.get(e.category_name)||0)+Number(e.amount)));return Array.from(map.entries()).map(([name,value])=>({name,value})).sort((a,b)=>b.value-a.value);},[currentExpenses]);
 
  const repeats=useMemo(()=>{const map=new Map<string,{count:number,total:number,qty:number}>();expenses.filter(e=>e.spent_at.startsWith(month)).forEach(e=>{const k=e.item_name.trim().toLowerCase();const v=map.get(k)||{count:0,total:0,qty:0};v.count++;v.total+=Number(e.amount);v.qty+=Number(e.quantity||1);map.set(k,v)});return Array.from(map.entries()).map(([name,v])=>({name:name.replace(/^./,x=>x.toUpperCase()),...v})).filter(x=>x.count>1).sort((a,b)=>b.total-a.total).slice(0,5)},[expenses,month]);
  const financeReview=useMemo(()=>{
-  const expenseRatio=salaryNum>0?(monthTotal/salaryNum)*100:null;
+  const expenseRatio=monthlyIncome>0?(monthTotal/monthlyIncome)*100:null;
   const topCategory=byCategory[0]||null;
-  const savingsTarget=salaryNum>0?salaryNum*0.1:0;
+  const savingsTarget=monthlyIncome>0?monthlyIncome*0.1:0;
   const availableSurplus=Math.max(0,balance);
   const affordableSavings=Math.min(savingsTarget,availableSurplus);
   const observations:string[]=[];
   const actions:string[]=[];
-  if(!salaryNum) observations.push("A monthly salary has not been recorded, so income-based ratios and a savings estimate cannot be calculated.");
+  if(!monthlyIncome) observations.push("No salary or income transactions have been recorded, so income-based ratios and a savings estimate cannot be calculated.");
   else if(balance<0){
    observations.push(`Recorded expenses exceed the monthly salary by ${money(Math.abs(balance))}.`);
    actions.push("Review optional spending first and avoid treating credit or borrowed money as available income.");
@@ -91,8 +108,8 @@ export default function Home() {
   }else if(expenseRatio!==null&&expenseRatio>=70){
    observations.push(`${expenseRatio.toFixed(1)}% of the recorded monthly salary has been spent. Monitor the remaining balance carefully.`);
    actions.push("Track weekly spending and move a realistic amount into savings before discretionary purchases.");
-  }else if(salaryNum>0){
-   observations.push(`${(100-(expenseRatio||0)).toFixed(1)}% of the recorded monthly salary remains after the expenses entered so far.`);
+  }else if(monthlyIncome>0){
+   observations.push(`${(100-(expenseRatio||0)).toFixed(1)}% of recorded monthly income remains after the expenses entered so far.`);
    actions.push("Keep the remaining balance for upcoming bills and essentials; transfer only the amount you can genuinely leave untouched into savings.");
   }
   if(topCategory){
@@ -113,7 +130,7 @@ export default function Home() {
   }
   if(!currentExpenses.length) observations.push("No expenses have been entered for this month yet. This review will become more useful as transactions are recorded.");
   return {expenseRatio,topCategory,savingsTarget,affordableSavings,observations,actions};
- },[salaryNum,monthTotal,balance,byCategory,repeats,salaryHistory.length,currentExpenses.length]);
+ },[monthlyIncome,monthTotal,balance,byCategory,repeats,salaryHistory.length,currentExpenses.length]);
  const budget=useMemo(()=>{
   // Recommend next month's category limits from the most recent 2–6 complete months.
   // Current selected month is excluded so the forecast is based on history only.
@@ -135,7 +152,7 @@ export default function Home() {
    return {name,previous:total/Math.max(usedMonths.length,1),historyTotal:total};
   }).filter(x=>x.historyTotal>0);
   const historySpend=averages.reduce((sum,x)=>sum+x.previous,0);
-  const salaryCap=Math.max(0,salaryNum*0.9);
+  const salaryCap=Math.max(0,monthlyIncome*0.9);
   const factor=historySpend>salaryCap&&historySpend>0?salaryCap/historySpend:1;
   return averages.map(x=>({
    name:x.name,
@@ -143,7 +160,7 @@ export default function Home() {
    planned:Math.max(0,Math.round(x.previous*factor)),
    historyTotal:x.historyTotal
   })).sort((a,b)=>b.planned-a.planned);
- },[expenses,month,salaryNum]);
+ },[expenses,month,monthlyIncome]);
  const budgetHistoryMonths=useMemo(()=>{
   return Array.from(new Set(expenses.map(e=>e.spent_at.slice(0,7)).filter(m=>/^\d{4}-\d{2}$/.test(m)&&m<month))).sort((a,b)=>b.localeCompare(a)).slice(0,6);
  },[expenses,month]);
@@ -155,29 +172,40 @@ export default function Home() {
  async function saveSalary(e:React.FormEvent){e.preventDefault();if(!supabase||!user)return;const n=Number(salaryInput);if(!Number.isFinite(n)||n<0){setError("Enter a valid salary amount.");return;}setSaving(true);const note=salaryAction==="change"?"Salary revised":salary?"Salary added":"Initial salary";const r=await supabase.from("salary_history").insert({user_id:user.id,monthly_salary:n,effective_from:salaryDate,note});if(r.error)setError(r.error.message);else{setNotice("Salary saved.");setSalaryInput("");setShowSalary(false);await load(user.id);}setSaving(false);}
  async function saveExpense(e:React.FormEvent){e.preventDefault();if(!supabase||!user)return;const n=Number(amount),q=Number(qty);if(!item.trim()||!Number.isFinite(n)||n<=0||!Number.isFinite(q)||q<=0){setError("Enter an item, positive amount and quantity.");return;}setSaving(true);const suggestion=categorySuggestion(item);let cat=categoryManuallySelected?category:suggestion.matched?suggestion.category:category;const cr=await supabase.from("expense_categories").upsert({user_id:user.id,name:cat},{onConflict:"user_id,name"}).select("id").single();const r=await supabase.from("expenses").insert({user_id:user.id,item_name:item.trim(),amount:n,quantity:q,category_id:cr.data?.id||null,category_name:cat,spent_at:spentAt,notes:notes.trim()||null});if(cr.error||r.error)setError(cr.error?.message||r.error?.message||"Unable to save expense.");else{setNotice(item+" saved · "+money(n)+" deducted from your balance.");setItem("");setAmount("");setQty("1");setNotes("");setCategoryManuallySelected(false);setCategory("Groceries");await load(user.id);}setSaving(false);}
  async function removeExpense(id:string){if(!supabase||!user)return;const r=await supabase.from("expenses").delete().eq("id",id).eq("user_id",user.id);if(r.error)setError(r.error.message);else await load(user.id);}
+ async function removeIncome(id:string){if(!supabase||!user)return;const r=await supabase.from("income_transactions").delete().eq("id",id).eq("user_id",user.id);if(r.error)setError(r.error.message);else await load(user.id);}
+ async function removeTransfer(id:string){if(!supabase||!user)return;const r=await supabase.from("account_transfers").delete().eq("id",id).eq("user_id",user.id);if(r.error)setError(r.error.message);else await load(user.id);}
  async function clearAllTransactions(){
   if(!supabase||!user)return;
-  const {count,error:countError}=await supabase.from("expenses").select("id",{count:"exact",head:true}).eq("user_id",user.id);
-  if(countError){setError(countError.message);return;}
-  if(!count)return;
-  const confirmed=window.confirm(`Permanently delete ALL ${count} transactions from your account? Salary, budgets, loans, savings goals and other profile data will not be changed.`);
+  const [e,i,t]=await Promise.all([
+   supabase.from("expenses").select("id",{count:"exact",head:true}).eq("user_id",user.id),
+   supabase.from("income_transactions").select("id",{count:"exact",head:true}).eq("user_id",user.id),
+   supabase.from("account_transfers").select("id",{count:"exact",head:true}).eq("user_id",user.id)
+  ]);
+  const countError=e.error||i.error||t.error;if(countError){setError(countError.message);return;}
+  const total=(e.count||0)+(i.count||0)+(t.count||0);if(!total)return;
+  const confirmed=window.confirm(`Permanently delete all ${total} expense, income and transfer records in your account? Salary, budgets, loans, savings goals and net-worth items will not be changed.`);
   if(!confirmed)return;
-  const phrase=window.prompt('Type CLEAR to permanently delete all your transactions.');
+  const phrase=window.prompt('Type CLEAR to permanently delete all your transaction records.');
   if(phrase!=="CLEAR"){setNotice("Clear cancelled. No transactions were deleted.");return;}
   setSaving(true);setError("");setNotice("");
   try{
    const {data:{user:verified},error:authError}=await supabase.auth.getUser();
    if(authError||!verified||verified.id!==user.id)throw new Error("Login verification failed. Sign in again.");
-   const {count:deleted,error:deleteError}=await supabase.from("expenses").delete({count:"exact"}).eq("user_id",verified.id);
-   if(deleteError)throw deleteError;
-   if(deleted!==count)throw new Error(`Expected to delete ${count} transactions, but database confirmed ${deleted??"an unknown number"}. Refresh and verify before retrying.`);
-   setExpenses([]);
+   const deletes=await Promise.all([
+    supabase.from("expenses").delete({count:"exact"}).eq("user_id",verified.id),
+    supabase.from("income_transactions").delete({count:"exact"}).eq("user_id",verified.id),
+    supabase.from("account_transfers").delete({count:"exact"}).eq("user_id",verified.id),
+    supabase.from("statement_import_batches").delete().eq("user_id",verified.id)
+   ]);
+   const failed=deletes.find(x=>x.error);if(failed?.error)throw failed.error;
+   const deleted=deletes.slice(0,3).reduce((sum,x)=>sum+((x as any).count||0),0);
+   if(deleted!==total)throw new Error(`Expected to delete ${total} transaction rows, but database confirmed ${deleted}. Refresh and verify.`);
    await load(verified.id);
-   setNotice("All transactions in your account have been deleted. Other finance data was left unchanged.");
-  }catch(e){setError(e instanceof Error?e.message:"Could not clear transactions.");}
+   setNotice(`Deleted ${deleted} expense, income and transfer rows. Salary, budgets, loans, goals and net worth were preserved.`);
+  }catch(e){setError(e instanceof Error?e.message:"Could not clear all transaction records.");}
   finally{setSaving(false);}
  }
- async function addCategory(e:React.FormEvent){e.preventDefault();if(!supabase||!user||!newCategory.trim())return;const name=newCategory.trim();const r=await supabase.from("expense_categories").upsert({user_id:user.id,name},{onConflict:"user_id,name"});if(r.error)setError(r.error.message);else{setCategories(prev=>[...new Set([...prev,name])]);setCategory(name);setCategoryManuallySelected(true);setNewCategory("");setNotice("Category added.");}}
+  async function addCategory(e:React.FormEvent){e.preventDefault();if(!supabase||!user||!newCategory.trim())return;const name=newCategory.trim();const r=await supabase.from("expense_categories").upsert({user_id:user.id,name},{onConflict:"user_id,name"});if(r.error)setError(r.error.message);else{setCategories(prev=>[...new Set([...prev,name])]);setCategory(name);setCategoryManuallySelected(true);setNewCategory("");setNotice("Category added.");}}
  if(!user)return (
    <main className="auth-shell">
     <section className="auth-panel" aria-labelledby="auth-title">
@@ -201,16 +229,16 @@ export default function Home() {
    <aside className="dashboard-sidebar">
     <div className="sidebar-brand"><div className="brand-mark" aria-hidden="true">S</div><div><strong>Salary Smart</strong><span>Personal ledger</span></div></div>
     <nav className="dashboard-nav" aria-label="Dashboard sections">
-     {[["overview","Overview"],["add-expense","Add expense"],["finance-report","Finance report"],["insights","Spending"],["budget","Budget"],["recurring-bills","Recurring bills"],["loans","Loans"],["savings","Savings goals"],["forecast","Cash flow"],["net-worth","Net worth"],["ai-finance","AI Finance Manager"],["investments","Investments"],["transactions","Transactions"],["import-statement","Import statement"]].map(([id,label])=><button key={id} type="button" className={activeSection===id?"active":""} onClick={()=>setActiveSection(id)}>{label}</button>)}
+     {[["overview","Overview"],["add-expense","Add expense"],["finance-report","Finance report"],["insights","Spending"],["budget","Budget"],["recurring-bills","Recurring bills"],["loans","Loans"],["savings","Savings goals"],["forecast","Cash flow"],["net-worth","Net worth"],["ai-finance","AI Finance Manager"],["investments","Investments"],["transactions","Transactions"],["income","Income & transfers"],["import-statement","Import statement"]].map(([id,label])=><button key={id} type="button" className={activeSection===id?"active":""} onClick={()=>setActiveSection(id)}>{label}</button>)}
     </nav>
     <div className="sidebar-account"><span>{user.email}</span><button className="signout-button" onClick={signout}><LogOut size={15}/> Sign out</button></div>
    </aside>
    <section className="dashboard-canvas">
     <header className="mobile-header"><div className="mobile-brand"><div className="brand-mark" aria-hidden="true">S</div><strong>Salary Smart</strong></div><button className="btn btn-muted" onClick={signout}>Sign out</button></header>
-    <nav className="mobile-nav" aria-label="Dashboard sections">{[["overview","Overview"],["add-expense","Add expense"],["finance-report","Finance"],["insights","Spending"],["budget","Budget"],["recurring-bills","Bills"],["loans","Loans"],["savings","Goals"],["forecast","Forecast"],["net-worth","Net worth"],["ai-finance","AI Manager"],["investments","Invest"],["transactions","History"],["import-statement","Import"]].map(([id,label])=><button key={id} type="button" className={activeSection===id?"active":""} onClick={()=>setActiveSection(id)}>{label}</button>)}</nav>
+    <nav className="mobile-nav" aria-label="Dashboard sections">{[["overview","Overview"],["add-expense","Add expense"],["finance-report","Finance"],["insights","Spending"],["budget","Budget"],["recurring-bills","Bills"],["loans","Loans"],["savings","Goals"],["forecast","Forecast"],["net-worth","Net worth"],["ai-finance","AI Manager"],["investments","Invest"],["transactions","History"],["income","Income"],["import-statement","Import"]].map(([id,label])=><button key={id} type="button" className={activeSection===id?"active":""} onClick={()=>setActiveSection(id)}>{label}</button>)}</nav>
     <div className="dashboard-content">
      <section className="page-title-row">
-      <div><h1>{({overview:"Monthly overview","add-expense":"Add an expense","finance-report":"Finance Manager Report",insights:"Spending insights",budget:"Budget Management","recurring-bills":"Recurring Bills",loans:"Loan Manager",savings:"Savings Goals",forecast:"Cash Flow Forecast","net-worth":"Net Worth Tracker","ai-finance":"AI Finance Manager",investments:"Savings & investments",transactions:"Transaction history","import-statement":"Import bank statement"} as Record<string,string>)[activeSection]}</h1><p>{activeSection==="overview"?(balance>=0?`${money(balance)} remains after ${money(monthTotal)} spent this month.`:`${money(Math.abs(balance))} is over the monthly salary amount.`):"Your personal finance workspace · "+month}</p></div>
+      <div><h1>{({overview:"Monthly overview","add-expense":"Add an expense","finance-report":"Finance Manager Report",insights:"Spending insights",budget:"Budget Management","recurring-bills":"Recurring Bills",loans:"Loan Manager",savings:"Savings Goals",forecast:"Cash Flow Forecast","net-worth":"Net Worth Tracker","ai-finance":"AI Finance Manager",investments:"Savings & investments",transactions:"Transaction history",income:"Income & transfers","import-statement":"Import bank statement"} as Record<string,string>)[activeSection]}</h1><p>{activeSection==="overview"?(balance>=0?`${money(balance)} remains after ${money(monthTotal)} spent this month.`:`${money(Math.abs(balance))} is over the monthly salary amount.`):"Your personal finance workspace · "+month}</p></div>
       <div className="overview-actions"><label>Month<input aria-label="Analytics month" type="month" className="field" value={month} onChange={e=>setMonth(e.target.value)}/></label></div>
      </section>
      {error&&<div role="alert" className="state-banner state-error">{error}</div>}
@@ -218,9 +246,9 @@ export default function Home() {
      {loading?<div className="panel loading-state"><RefreshCw className="spin" size={18}/> Loading your data…</div>:<>
       {activeSection==="overview"&&<>
       <section className="kpi-grid" aria-label="Monthly totals">
-       <article className="panel kpi"><span>Monthly salary</span><strong>{money(salaryNum)}</strong><div className="salary-actions"><button type="button" onClick={()=>{setSalaryAction("add");setSalaryInput("");setSalaryDate(today());setShowSalary(true);setError("");}}>Add salary</button><button type="button" disabled={!salary} onClick={()=>{setSalaryAction("change");setSalaryInput(String(salaryNum||""));setSalaryDate(today());setShowSalary(true);setError("");}}>Change salary</button></div></article>
+       <article className="panel kpi"><span>Monthly income</span><strong>{money(monthlyIncome)}</strong><p>Salary basis: {money(salaryNum)} · Other credits: {money(otherIncome)}</p><div className="salary-actions"><button type="button" onClick={()=>{setSalaryAction("add");setSalaryInput("");setSalaryDate(today());setShowSalary(true);setError("");}}>Add salary</button><button type="button" disabled={!salary} onClick={()=>{setSalaryAction("change");setSalaryInput(String(salaryNum||""));setSalaryDate(today());setShowSalary(true);setError("");}}>Change salary</button></div></article>
        <article className="panel kpi"><span>Spent this month</span><strong>{money(monthTotal)}</strong><p>{month}</p></article>
-       <article className="panel kpi kpi-primary"><span>Available balance</span><strong>{money(balance)}</strong><p>{salaryNum?`${Math.max(0,Math.round((balance/salaryNum)*100))}% of salary left`:"Set salary to see balance"}</p></article>
+       <article className="panel kpi kpi-primary"><span>Available balance</span><strong>{money(balance)}</strong><p>{monthlyIncome?`${Math.max(0,Math.round((balance/monthlyIncome)*100))}% of income left`:"Record income to see balance"}</p></article>
        <article className="panel kpi"><span>Transactions</span><strong>{currentExpenses.length}</strong><p>{currentExpenses.length===1?"entry this month":"entries this month"}</p></article>
       </section>
       {showSalary&&<section className="panel salary-panel"><div className="panel-heading"><div><h2>{salaryAction==="change"?"Change monthly salary":"Add salary record"}</h2><p>{salaryHistory.length?`${salaryHistory.length} salary records saved`:"This becomes your starting monthly income"} · Salary records are effective-dated; the latest record determines the monthly salary shown.</p></div><button className="icon-button" aria-label="Close salary form" onClick={()=>{setShowSalary(false);setSalaryAction(null);}}><X size={17}/></button></div><form onSubmit={saveSalary} className="salary-form"><label>Monthly salary (₹)<input className="field" type="number" min="0" step="0.01" required value={salaryInput} onChange={e=>setSalaryInput(e.target.value)} placeholder="50000"/></label><label>Effective from<input className="field" type="date" required value={salaryDate} onChange={e=>setSalaryDate(e.target.value)}/></label><button className="btn btn-primary" disabled={saving}>{saving?"Saving…":salaryAction==="change"?"Save salary change":"Add salary"}</button></form></section>}
@@ -241,7 +269,7 @@ export default function Home() {
       <section id="finance-report" className="panel finance-report">
        <div className="panel-heading"><div><h2>Finance Manager Report</h2><p>Monthly financial review · {month}</p></div><span className="budget-history-badge">Based on saved records</span></div>
        <div className="finance-report-metrics">
-        <div><span>Recorded income</span><strong>{money(salaryNum)}</strong></div>
+        <div><span>Recorded income</span><strong>{money(monthlyIncome)}</strong></div>
         <div><span>Recorded expenses</span><strong>{money(monthTotal)}</strong></div>
         <div><span>Remaining balance</span><strong>{money(balance)}</strong></div>
         <div><span>Expense-to-income</span><strong>{financeReview.expenseRatio===null?"—":financeReview.expenseRatio.toFixed(1)+"%"}</strong></div>
@@ -251,14 +279,14 @@ export default function Home() {
         <div><h3>Recommended next steps</h3>{financeReview.actions.length?<ol>{financeReview.actions.map((x,i)=><li key={i}>{x}</li>)}</ol>:<p>Enter salary and expense records to generate practical next steps.</p>}</div>
        </div>
        <div className="finance-report-savings"><span>Indicative 10% savings goal</span><strong>{money(financeReview.savingsTarget)}</strong><span>Surplus currently available after recorded expenses: {money(financeReview.affordableSavings)}</span></div>
-       <p className="finance-report-note">This is a rule-based review of the data entered in Salary Smart, not a certified accounting statement. It does not include unrecorded cash spending, bank balances, debts, assets, taxes or other income. The dashboard currently loads up to 1,000 recent expense records, so older or additional transactions may be excluded. Salary shown is the latest saved salary record, not necessarily the salary that applied to every historical month.</p>
+       <p className="finance-report-note">This is a rule-based review of saved records, not a certified accounting statement. It does not include unrecorded cash spending, other bank accounts, taxes or missing statement periods. Expense, income and transfer ledgers are loaded in 1,000-row pages. Imported salary credits replace the salary-history estimate for the selected month to avoid double-counting.</p>
       </section>
       </>}
       {activeSection==="insights"&&<>
 <div className="panel trend-panel"><div className="panel-heading"><div><h2>Daily spending</h2><p>Recorded spend · {month}</p></div><strong>{daily.length?money(Math.max(...daily.map(x=>x.total))):money(0)} peak</strong></div>{daily.length?<div className="trend-chart"><ResponsiveContainer width="100%" height="100%"><AreaChart data={daily} margin={{top:8,right:8,left:0,bottom:0}}><CartesianGrid stroke="#edf0f2" vertical={false}/><XAxis dataKey="date" tickLine={false} axisLine={false}/><YAxis tickLine={false} axisLine={false} width={52} tickFormatter={(v)=>`₹${v}`}/><Tooltip formatter={(v:any)=>money(Number(v))}/><Area type="monotone" dataKey="total" stroke="#1d5fd6" strokeWidth={2.5} fill="#edf3fc"/></AreaChart></ResponsiveContainer></div>:<div className="empty-state"><CalendarDays size={22}/><p>No daily activity yet.</p></div>}</div>
 <div className="panel repeats-panel"><div className="panel-heading"><div><h2>Repeat purchases</h2><p>More than one entry this month</p></div></div>{repeats.length?<div className="repeat-list">{repeats.map(x=><div key={x.name}><div><strong>{x.name}</strong><span>{x.count} entries · quantity {x.qty}</span></div><strong>{money(x.total)}</strong></div>)}</div>:<div className="empty-state"><Check size={22}/><p>Repeated items will appear here.</p></div>}</div>
       </>}
-      {activeSection==="budget"&&<FinanceModules section="budget" userId={user.id} salary={salaryNum} expenses={expenses} month={month}/>}
+      {activeSection==="budget"&&<FinanceModules section="budget" userId={user.id} salary={monthlyIncome} expenses={expenses} month={month}/>}
       {activeSection==="recurring-bills"&&<FinanceModules section="recurring-bills" userId={user.id} salary={salaryNum} expenses={expenses} month={month}/>}
       {activeSection==="loans"&&<FinanceModules section="loans" userId={user.id} salary={salaryNum} expenses={expenses} month={month}/>}
       {activeSection==="savings"&&<FinanceModules section="savings" userId={user.id} salary={salaryNum} expenses={expenses} month={month}/>}
@@ -304,8 +332,18 @@ export default function Home() {
       </section>
       </>}
       {activeSection==="import-statement"&&<StatementImport userId={user.id} onImported={()=>load(user.id)}/>}
+      {activeSection==="income"&&<>
+       <section className="panel transaction-section">
+        <div className="panel-heading"><div><h2>Income ledger</h2><p>Bank statement credits and incoming funds · {month}</p></div><strong>{money(currentIncomes.reduce((sum,x)=>sum+Number(x.amount),0))}</strong></div>
+        {currentIncomes.length?<div className="overflow-x-auto"><table><thead><tr><th>Source / description</th><th>Type</th><th>Date</th><th>Amount</th><th>Action</th></tr></thead><tbody>{currentIncomes.map(x=><tr key={x.id}><td className="transaction-item"><strong>{x.item_name}</strong>{x.notes&&<span>{x.notes}</span>}</td><td>{x.income_type}</td><td>{new Date(x.received_at+"T00:00:00").toLocaleDateString("en-IN")}</td><td>{money(Number(x.amount))}</td><td><button className="remove-button" aria-label={`Delete income ${x.item_name}`} onClick={()=>removeIncome(x.id)}><X size={15}/></button></td></tr>)}</tbody></table></div>:<div className="empty-state table-empty"><Wallet size={22}/><p>No income credits saved for this month.</p></div>}
+       </section>
+       <section className="panel transaction-section" style={{marginTop:16}}>
+        <div className="panel-heading"><div><h2>Own-account transfers</h2><p>Transfers are displayed separately and do not count as income or expenses.</p></div><strong>{currentTransfers.length} records</strong></div>
+        {currentTransfers.length?<div className="overflow-x-auto"><table><thead><tr><th>Description</th><th>Direction</th><th>Date</th><th>Amount</th><th>Action</th></tr></thead><tbody>{currentTransfers.map(x=><tr key={x.id}><td className="transaction-item"><strong>{x.item_name}</strong></td><td>{x.direction}</td><td>{new Date(x.transferred_at+"T00:00:00").toLocaleDateString("en-IN")}</td><td>{money(Number(x.amount))}</td><td><button className="remove-button" aria-label={`Delete transfer ${x.item_name}`} onClick={()=>removeTransfer(x.id)}><X size={15}/></button></td></tr>)}</tbody></table></div>:<div className="empty-state table-empty"><p>No own-account transfers saved for this month.</p></div>}
+       </section>
+      </>}
       {activeSection==="transactions"&&<>
-<section id="transactions" className="panel transaction-section"><div className="panel-heading transaction-heading"><div><h2>Recent transactions</h2><p>Newest entries first</p></div><div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}><span>{expenses.length} saved</span><button type="button" className="remove-button" disabled={!expenses.length||saving} onClick={clearAllTransactions} style={{width:"auto",padding:"8px 14px",color:"#b42318",border:"1px solid #f0b7b2",borderRadius:8,fontWeight:600}}>{saving?"Clearing…":"Clear all transactions"}</button></div></div>{error&&<p role="alert" className="state-error">{error}</p>}{notice&&<p role="status" className="state-success">{notice}</p>}{expenses.length?<div className="overflow-x-auto"><table><thead><tr><th>Item</th><th>Category</th><th>Date</th><th>Quantity</th><th>Amount</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>{expenses.map(x=><tr key={x.id}><td className="transaction-item"><strong>{x.item_name}</strong>{x.notes&&<span>{x.notes}</span>}</td><td>{x.category_name}</td><td>{new Date(x.spent_at+"T00:00:00").toLocaleDateString("en-IN")}</td><td>{x.quantity}</td><td>{money(Number(x.amount))}</td><td><button className="remove-button" aria-label={`Delete ${x.item_name}`} onClick={()=>removeExpense(x.id)}><X size={15}/></button></td></tr>)}</tbody></table></div>:<div className="empty-state table-empty"><Wallet size={22}/><p>No transactions saved yet.</p></div>}</section>
+<section id="transactions" className="panel transaction-section"><div className="panel-heading transaction-heading"><div><h2>Recent transactions</h2><p>Newest entries first</p></div><div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}><span>{expenses.length+incomes.length+transfers.length} saved</span><button type="button" className="remove-button" disabled={!(expenses.length+incomes.length+transfers.length)||saving} onClick={clearAllTransactions style={{width:"auto",padding:"8px 14px",color:"#b42318",border:"1px solid #f0b7b2",borderRadius:8,fontWeight:600}}>{saving?"Clearing…":"Clear all transactions"}</button></div></div>{error&&<p role="alert" className="state-error">{error}</p>}{notice&&<p role="status" className="state-success">{notice}</p>}{expenses.length?<div className="overflow-x-auto"><table><thead><tr><th>Item</th><th>Category</th><th>Date</th><th>Quantity</th><th>Amount</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>{expenses.map(x=><tr key={x.id}><td className="transaction-item"><strong>{x.item_name}</strong>{x.notes&&<span>{x.notes}</span>}</td><td>{x.category_name}</td><td>{new Date(x.spent_at+"T00:00:00").toLocaleDateString("en-IN")}</td><td>{x.quantity}</td><td>{money(Number(x.amount))}</td><td><button className="remove-button" aria-label={`Delete ${x.item_name}`} onClick={()=>removeExpense(x.id)}><X size={15}/></button></td></tr>)}</tbody></table></div>:<div className="empty-state table-empty"><Wallet size={22}/><p>No transactions saved yet.</p></div>}</section>
       </>}     </>}
      <footer><span>Salary Smart Budget · Your money stays yours.</span><span><ShieldCheck size={14}/> Supabase authentication · Row-level security</span></footer>
     </div>
