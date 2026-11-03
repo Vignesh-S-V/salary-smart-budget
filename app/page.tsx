@@ -20,7 +20,7 @@ export default function Home() {
  const [session,setSession]=useState<any>(null),[email,setEmail]=useState(""),[password,setPassword]=useState(""),[signup,setSignup]=useState(false);
  const [salary,setSalary]=useState<Salary|null>(null),[salaryHistory,setSalaryHistory]=useState<Salary[]>([]),[expenses,setExpenses]=useState<Expense[]>([]),[incomes,setIncomes]=useState<IncomeTransaction[]>([]),[transfers,setTransfers]=useState<AccountTransfer[]>([]);
  const [salaryInput,setSalaryInput]=useState(""),[salaryDate,setSalaryDate]=useState(today()),[showSalary,setShowSalary]=useState(false),[salaryAction,setSalaryAction]=useState<"add"|"change"|null>(null);
- const [oneTimeIncomeSource,setOneTimeIncomeSource]=useState("Bonus"),[oneTimeIncomeAmount,setOneTimeIncomeAmount]=useState("25500"),[oneTimeIncomeDate,setOneTimeIncomeDate]=useState(today());
+ const [oneTimeIncomeKind,setOneTimeIncomeKind]=useState("Bonus"),[oneTimeIncomeSource,setOneTimeIncomeSource]=useState("Bonus"),[oneTimeIncomeAmount,setOneTimeIncomeAmount]=useState("25500"),[oneTimeIncomeDate,setOneTimeIncomeDate]=useState(today());
  const [item,setItem]=useState(""),[amount,setAmount]=useState(""),[qty,setQty]=useState("1"),[category,setCategory]=useState("Groceries"),[spentAt,setSpentAt]=useState(today()),[notes,setNotes]=useState("");
  const [categories,setCategories]=useState<string[]>(CATEGORIES),[newCategory,setNewCategory]=useState("");
  const [categoryManuallySelected,setCategoryManuallySelected]=useState(false);
@@ -161,10 +161,10 @@ export default function Home() {
    setSaving(true);setError("");
    const r=await supabase.from("income_transactions").insert({
     user_id:user.id,item_name:oneTimeIncomeSource.trim(),amount:n,income_type:"other",
-    received_at:oneTimeIncomeDate,notes:"One-time income; excluded from recurring salary forecast."
+    received_at:oneTimeIncomeDate,notes:"One-time income type: "+oneTimeIncomeKind+"; excluded from recurring salary forecast."
    });
    if(r.error)setError(r.error.message);
-   else{setNotice(oneTimeIncomeSource.trim()+" saved as one-time income · "+money(n)+". Monthly salary and future salary forecast are unchanged.");setOneTimeIncomeSource("Bonus");setOneTimeIncomeAmount("");await load(user.id);}
+   else{setNotice(oneTimeIncomeSource.trim()+" saved as "+oneTimeIncomeKind.toLowerCase()+" · "+money(n)+". Monthly salary and future salary forecast are unchanged.");setOneTimeIncomeKind("Bonus");setOneTimeIncomeSource("Bonus");setOneTimeIncomeAmount("");await load(user.id);}
    setSaving(false);
   }
   async function removeIncome(id:string){if(!supabase||!user)return;const r=await supabase.from("income_transactions").delete().eq("id",id).eq("user_id",user.id);if(r.error)setError(r.error.message);else await load(user.id);}
@@ -329,9 +329,10 @@ export default function Home() {
       {activeSection==="import-statement"&&<StatementImport userId={user.id} onImported={()=>load(user.id)}/>}
       {activeSection==="income"&&<>
         <section className="panel transaction-section">
-         <div className="panel-heading"><div><h2>Add one-time income / bonus</h2><p>Record a bonus separately. It will affect only the month received, not your recurring monthly salary or future forecast.</p></div></div>
+         <div className="panel-heading"><div><h2>Add Other Income</h2><p>Record a bonus, incentive, gift, side income or any other one-time credit. It is counted only in the month received and never added to recurring monthly salary.</p></div></div>
          <form className="expense-form" onSubmit={saveOneTimeIncome}>
-          <label>Income source<input className="field" required value={oneTimeIncomeSource} onChange={e=>setOneTimeIncomeSource(e.target.value)} placeholder="Bonus"/></label>
+          <label>Income type<select className="field" value={oneTimeIncomeKind} onChange={e=>{setOneTimeIncomeKind(e.target.value);setOneTimeIncomeSource(e.target.value==="Other income"?"":e.target.value);}}><option>Bonus</option><option>Incentive</option><option>Gift</option><option>Side income</option><option>Other income</option></select></label>
+          <label>Income source<input className="field" required value={oneTimeIncomeSource} onChange={e=>setOneTimeIncomeSource(e.target.value)} placeholder="e.g. Annual bonus or freelance work"/></label>
           <label>Amount (₹)<input className="field" type="number" min="0.01" step="0.01" required value={oneTimeIncomeAmount} onChange={e=>setOneTimeIncomeAmount(e.target.value)} placeholder="25500"/></label>
           <label>Received date<input className="field" type="date" required value={oneTimeIncomeDate} onChange={e=>setOneTimeIncomeDate(e.target.value)}/></label>
           <button className="btn btn-primary" disabled={saving}>{saving?"Saving…":"Save one-time income"}</button>
@@ -339,7 +340,7 @@ export default function Home() {
         </section>
         <section className="panel transaction-section" style={{marginTop:16}}>
          <div className="panel-heading"><div><h2>Income ledger</h2><p>Bank statement credits and one-time income · {month}</p></div><strong>{money(currentIncomes.reduce((sum,x)=>sum+Number(x.amount),0))}</strong></div>
-         {currentIncomes.length?<div className="overflow-x-auto"><table><thead><tr><th>Source / description</th><th>Type</th><th>Date</th><th>Amount</th><th>Action</th></tr></thead><tbody>{currentIncomes.map(x=><tr key={x.id}><td className="transaction-item"><strong>{x.item_name}</strong>{x.notes&&<span>{x.notes}</span>}</td><td>{x.item_name.toLowerCase().includes("bonus")?"One-time bonus":x.income_type}</td><td>{new Date(x.received_at+"T00:00:00").toLocaleDateString("en-IN")}</td><td>{money(Number(x.amount))}</td><td><button className="remove-button" aria-label={`Delete income ${x.item_name}`} onClick={()=>removeIncome(x.id)}><X size={15}/></button></td></tr>)}</tbody></table></div>:<div className="empty-state table-empty"><Wallet size={22}/><p>No income credits saved for this month.</p></div>}
+         {currentIncomes.length?<div className="overflow-x-auto"><table><thead><tr><th>Source / description</th><th>Type</th><th>Date</th><th>Amount</th><th>Action</th></tr></thead><tbody>{currentIncomes.map(x=><tr key={x.id}><td className="transaction-item"><strong>{x.item_name}</strong>{x.notes&&<span>{x.notes}</span>}</td><td>{x.income_type==="salary"?"Salary":"Other income"}</td><td>{new Date(x.received_at+"T00:00:00").toLocaleDateString("en-IN")}</td><td>{money(Number(x.amount))}</td><td><button className="remove-button" aria-label={`Delete income ${x.item_name}`} onClick={()=>removeIncome(x.id)}><X size={15}/></button></td></tr>)}</tbody></table></div>:<div className="empty-state table-empty"><Wallet size={22}/><p>No income credits saved for this month.</p></div>}
         </section>
         <section className="panel transaction-section" style={{marginTop:16}}>
          <div className="panel-heading"><div><h2>Own-account transfers</h2><p>Transfers are displayed separately and do not count as income or expenses.</p></div><strong>{currentTransfers.length} records</strong></div>
