@@ -20,6 +20,7 @@ export default function Home() {
  const [session,setSession]=useState<any>(null),[email,setEmail]=useState(""),[password,setPassword]=useState(""),[signup,setSignup]=useState(false);
  const [salary,setSalary]=useState<Salary|null>(null),[salaryHistory,setSalaryHistory]=useState<Salary[]>([]),[expenses,setExpenses]=useState<Expense[]>([]),[incomes,setIncomes]=useState<IncomeTransaction[]>([]),[transfers,setTransfers]=useState<AccountTransfer[]>([]);
  const [salaryInput,setSalaryInput]=useState(""),[salaryDate,setSalaryDate]=useState(today()),[showSalary,setShowSalary]=useState(false),[salaryAction,setSalaryAction]=useState<"add"|"change"|null>(null);
+ const [oneTimeIncomeSource,setOneTimeIncomeSource]=useState("Bonus"),[oneTimeIncomeAmount,setOneTimeIncomeAmount]=useState("25500"),[oneTimeIncomeDate,setOneTimeIncomeDate]=useState(today());
  const [item,setItem]=useState(""),[amount,setAmount]=useState(""),[qty,setQty]=useState("1"),[category,setCategory]=useState("Groceries"),[spentAt,setSpentAt]=useState(today()),[notes,setNotes]=useState("");
  const [categories,setCategories]=useState<string[]>(CATEGORIES),[newCategory,setNewCategory]=useState("");
  const [categoryManuallySelected,setCategoryManuallySelected]=useState(false);
@@ -153,7 +154,20 @@ export default function Home() {
  async function saveSalary(e:React.FormEvent){e.preventDefault();if(!supabase||!user)return;const n=Number(salaryInput);if(!Number.isFinite(n)||n<0){setError("Enter a valid salary amount.");return;}setSaving(true);const note=salaryAction==="change"?"Salary revised":salary?"Salary added":"Initial salary";const r=await supabase.from("salary_history").insert({user_id:user.id,monthly_salary:n,effective_from:salaryDate,note});if(r.error)setError(r.error.message);else{setNotice("Salary saved.");setSalaryInput("");setShowSalary(false);await load(user.id);}setSaving(false);}
  async function saveExpense(e:React.FormEvent){e.preventDefault();if(!supabase||!user)return;const n=Number(amount),q=Number(qty);if(!item.trim()||!Number.isFinite(n)||n<=0||!Number.isFinite(q)||q<=0){setError("Enter an item, positive amount and quantity.");return;}setSaving(true);const suggestion=categorySuggestion(item);let cat=suggestion.category===MEAT_CATEGORY?MEAT_CATEGORY:categoryManuallySelected?category:suggestion.matched?suggestion.category:category;const cr=await supabase.from("expense_categories").upsert({user_id:user.id,name:cat},{onConflict:"user_id,name"}).select("id").single();const r=await supabase.from("expenses").insert({user_id:user.id,item_name:item.trim(),amount:n,quantity:q,category_id:cr.data?.id||null,category_name:cat,spent_at:spentAt,notes:notes.trim()||null});if(cr.error||r.error)setError(cr.error?.message||r.error?.message||"Unable to save expense.");else{setNotice(item+" saved · "+money(n)+" deducted from your balance.");setItem("");setAmount("");setQty("1");setNotes("");setCategoryManuallySelected(false);setCategory("Groceries");await load(user.id);}setSaving(false);}
  async function removeExpense(id:string){if(!supabase||!user)return;const r=await supabase.from("expenses").delete().eq("id",id).eq("user_id",user.id);if(r.error)setError(r.error.message);else await load(user.id);}
- async function removeIncome(id:string){if(!supabase||!user)return;const r=await supabase.from("income_transactions").delete().eq("id",id).eq("user_id",user.id);if(r.error)setError(r.error.message);else await load(user.id);}
+ async function saveOneTimeIncome(e:React.FormEvent){
+   e.preventDefault();if(!supabase||!user)return;
+   const n=Number(oneTimeIncomeAmount);
+   if(!oneTimeIncomeSource.trim()||!Number.isFinite(n)||n<=0||!oneTimeIncomeDate){setError("Enter a source, positive amount and received date.");return;}
+   setSaving(true);setError("");
+   const r=await supabase.from("income_transactions").insert({
+    user_id:user.id,item_name:oneTimeIncomeSource.trim(),amount:n,income_type:"other",
+    received_at:oneTimeIncomeDate,notes:"One-time income; excluded from recurring salary forecast."
+   });
+   if(r.error)setError(r.error.message);
+   else{setNotice(oneTimeIncomeSource.trim()+" saved as one-time income · "+money(n)+". Monthly salary and future salary forecast are unchanged.");setOneTimeIncomeSource("Bonus");setOneTimeIncomeAmount("");await load(user.id);}
+   setSaving(false);
+  }
+  async function removeIncome(id:string){if(!supabase||!user)return;const r=await supabase.from("income_transactions").delete().eq("id",id).eq("user_id",user.id);if(r.error)setError(r.error.message);else await load(user.id);}
  async function removeTransfer(id:string){if(!supabase||!user)return;const r=await supabase.from("account_transfers").delete().eq("id",id).eq("user_id",user.id);if(r.error)setError(r.error.message);else await load(user.id);}
  async function clearAllTransactions(){
   if(!supabase||!user)return;
@@ -314,16 +328,25 @@ export default function Home() {
       </>}
       {activeSection==="import-statement"&&<StatementImport userId={user.id} onImported={()=>load(user.id)}/>}
       {activeSection==="income"&&<>
-       <section className="panel transaction-section">
-        <div className="panel-heading"><div><h2>Income ledger</h2><p>Bank statement credits and incoming funds · {month}</p></div><strong>{money(currentIncomes.reduce((sum,x)=>sum+Number(x.amount),0))}</strong></div>
-        {currentIncomes.length?<div className="overflow-x-auto"><table><thead><tr><th>Source / description</th><th>Type</th><th>Date</th><th>Amount</th><th>Action</th></tr></thead><tbody>{currentIncomes.map(x=><tr key={x.id}><td className="transaction-item"><strong>{x.item_name}</strong>{x.notes&&<span>{x.notes}</span>}</td><td>{x.income_type}</td><td>{new Date(x.received_at+"T00:00:00").toLocaleDateString("en-IN")}</td><td>{money(Number(x.amount))}</td><td><button className="remove-button" aria-label={`Delete income ${x.item_name}`} onClick={()=>removeIncome(x.id)}><X size={15}/></button></td></tr>)}</tbody></table></div>:<div className="empty-state table-empty"><Wallet size={22}/><p>No income credits saved for this month.</p></div>}
-       </section>
-       <section className="panel transaction-section" style={{marginTop:16}}>
-        <div className="panel-heading"><div><h2>Own-account transfers</h2><p>Transfers are displayed separately and do not count as income or expenses.</p></div><strong>{currentTransfers.length} records</strong></div>
-        {currentTransfers.length?<div className="overflow-x-auto"><table><thead><tr><th>Description</th><th>Direction</th><th>Date</th><th>Amount</th><th>Action</th></tr></thead><tbody>{currentTransfers.map(x=><tr key={x.id}><td className="transaction-item"><strong>{x.item_name}</strong></td><td>{x.direction}</td><td>{new Date(x.transferred_at+"T00:00:00").toLocaleDateString("en-IN")}</td><td>{money(Number(x.amount))}</td><td><button className="remove-button" aria-label={`Delete transfer ${x.item_name}`} onClick={()=>removeTransfer(x.id)}><X size={15}/></button></td></tr>)}</tbody></table></div>:<div className="empty-state table-empty"><p>No own-account transfers saved for this month.</p></div>}
-       </section>
-      </>}
-      {activeSection==="transactions"&&<>
+        <section className="panel transaction-section">
+         <div className="panel-heading"><div><h2>Add one-time income / bonus</h2><p>Record a bonus separately. It will affect only the month received, not your recurring monthly salary or future forecast.</p></div></div>
+         <form className="expense-form" onSubmit={saveOneTimeIncome}>
+          <label>Income source<input className="field" required value={oneTimeIncomeSource} onChange={e=>setOneTimeIncomeSource(e.target.value)} placeholder="Bonus"/></label>
+          <label>Amount (₹)<input className="field" type="number" min="0.01" step="0.01" required value={oneTimeIncomeAmount} onChange={e=>setOneTimeIncomeAmount(e.target.value)} placeholder="25500"/></label>
+          <label>Received date<input className="field" type="date" required value={oneTimeIncomeDate} onChange={e=>setOneTimeIncomeDate(e.target.value)}/></label>
+          <button className="btn btn-primary" disabled={saving}>{saving?"Saving…":"Save one-time income"}</button>
+         </form>
+        </section>
+        <section className="panel transaction-section" style={{marginTop:16}}>
+         <div className="panel-heading"><div><h2>Income ledger</h2><p>Bank statement credits and one-time income · {month}</p></div><strong>{money(currentIncomes.reduce((sum,x)=>sum+Number(x.amount),0))}</strong></div>
+         {currentIncomes.length?<div className="overflow-x-auto"><table><thead><tr><th>Source / description</th><th>Type</th><th>Date</th><th>Amount</th><th>Action</th></tr></thead><tbody>{currentIncomes.map(x=><tr key={x.id}><td className="transaction-item"><strong>{x.item_name}</strong>{x.notes&&<span>{x.notes}</span>}</td><td>{x.item_name.toLowerCase().includes("bonus")?"One-time bonus":x.income_type}</td><td>{new Date(x.received_at+"T00:00:00").toLocaleDateString("en-IN")}</td><td>{money(Number(x.amount))}</td><td><button className="remove-button" aria-label={`Delete income ${x.item_name}`} onClick={()=>removeIncome(x.id)}><X size={15}/></button></td></tr>)}</tbody></table></div>:<div className="empty-state table-empty"><Wallet size={22}/><p>No income credits saved for this month.</p></div>}
+        </section>
+        <section className="panel transaction-section" style={{marginTop:16}}>
+         <div className="panel-heading"><div><h2>Own-account transfers</h2><p>Transfers are displayed separately and do not count as income or expenses.</p></div><strong>{currentTransfers.length} records</strong></div>
+         {currentTransfers.length?<div className="overflow-x-auto"><table><thead><tr><th>Description</th><th>Direction</th><th>Date</th><th>Amount</th><th>Action</th></tr></thead><tbody>{currentTransfers.map(x=><tr key={x.id}><td className="transaction-item"><strong>{x.item_name}</strong></td><td>{x.direction}</td><td>{new Date(x.transferred_at+"T00:00:00").toLocaleDateString("en-IN")}</td><td>{money(Number(x.amount))}</td><td><button className="remove-button" aria-label={`Delete transfer ${x.item_name}`} onClick={()=>removeTransfer(x.id)}><X size={15}/></button></td></tr>)}</tbody></table></div>:<div className="empty-state table-empty"><p>No own-account transfers saved for this month.</p></div>}
+        </section>
+       </>}
+      activeSection==="transactions"&&<>
 <section id="transactions" className="panel transaction-section"><div className="panel-heading transaction-heading"><div><h2>Recent transactions</h2><p>Newest entries first</p></div><div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}><span>{expenses.length+incomes.length+transfers.length} saved</span><button type="button" className="remove-button" disabled={!(expenses.length+incomes.length+transfers.length)||saving} onClick={clearAllTransactions} style={{width:"auto",padding:"8px 14px",color:"#b42318",border:"1px solid #f0b7b2",borderRadius:8,fontWeight:600}}>{saving?"Clearing…":"Clear all transactions"}</button></div></div>{error&&<p role="alert" className="state-error">{error}</p>}{notice&&<p role="status" className="state-success">{notice}</p>}{expenses.length?<div className="overflow-x-auto"><table><thead><tr><th>Item</th><th>Category</th><th>Date</th><th>Quantity</th><th>Amount</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>{expenses.map(x=><tr key={x.id}><td className="transaction-item"><strong>{x.item_name}</strong>{x.notes&&<span>{x.notes}</span>}</td><td>{x.category_name}</td><td>{new Date(x.spent_at+"T00:00:00").toLocaleDateString("en-IN")}</td><td>{x.quantity}</td><td>{money(Number(x.amount))}</td><td><button className="remove-button" aria-label={`Delete ${x.item_name}`} onClick={()=>removeExpense(x.id)}><X size={15}/></button></td></tr>)}</tbody></table></div>:<div className="empty-state table-empty"><Wallet size={22}/><p>No transactions saved yet.</p></div>}</section>
       </>}     </>}
      <footer><span>Salary Smart Budget · Your money stays yours.</span><span><ShieldCheck size={14}/> Supabase authentication · Row-level security</span></footer>
