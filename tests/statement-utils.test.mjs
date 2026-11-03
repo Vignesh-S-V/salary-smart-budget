@@ -71,14 +71,17 @@ test("raw chicken, mutton and fish purchases use Meat & Poultry (Non-Veg)", () =
 
 test("Tamil meat and fish purchase names use Meat & Poultry (Non-Veg)", () => {
   for (const item of ["சிக்கன்", "மட்டன்", "கோழி", "ஆட்டிறைச்சி", "ஆட்டுக்கறி", "மீன்", "இறால்", "நண்டு", "கணவாய்", "கருவாடு"]) {
-    assert.equal(categorySuggestion(item).category, "Groceries", item);
+    assert.equal(categorySuggestion(item).category, "Meat & Poultry (Non-Veg)", item);
   }
 });
 
-test("prepared chicken and mutton dishes stay in Food & Drinks", () => {
-  assert.equal(categorySuggestion("Chicken biryani").category, "Food & Drinks");
-  assert.equal(categorySuggestion("Mutton curry").category, "Food & Drinks");
-  assert.equal(categorySuggestion("Fish fry").category, "Food & Drinks");
-  assert.equal(categorySuggestion("Chicken 65").category, "Food & Drinks");
+test("cooked chicken, mutton and fish dishes also use Meat & Poultry (Non-Veg)", () => {
+  assert.equal(categorySuggestion("Chicken biryani").category, "Meat & Poultry (Non-Veg)");
+  assert.equal(categorySuggestion("Mutton curry").category, "Meat & Poultry (Non-Veg)");
+  assert.equal(categorySuggestion("Fish fry").category, "Meat & Poultry (Non-Veg)");
+  assert.equal(categorySuggestion("Chicken 65").category, "Meat & Poultry (Non-Veg)");
+  assert.equal(categorySuggestion("Mutton biriyani").category, "Meat & Poultry (Non-Veg)");
+  assert.equal(categorySuggestion("Fish kolambu").category, "Meat & Poultry (Non-Veg)");
+  assert.equal(categorySuggestion("மீன் குழம்பு").category, "Meat & Poultry (Non-Veg)");
 
 });
