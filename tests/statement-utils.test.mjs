@@ -60,3 +60,22 @@ test("flags a running-balance mismatch instead of silently accepting it", () => 
   assert.equal(result.matched,false);
   assert.notEqual(result.difference,0);
 });
+
+import { categorySuggestion } from "../lib/category-utils.mjs";
+
+test("raw chicken and mutton purchases are classified as Groceries", () => {
+  for (const item of ["Chicken", "Mutton", "Mutton & Chicken", "Fresh chicken", "Mutton shop", "kozhi", "aadu"]) {
+    assert.equal(categorySuggestion(item).category, "Groceries", item);
+  }
+});
+
+test("Tamil meat purchase names are classified as Groceries", () => {
+  for (const item of ["சிக்கன்", "மட்டன்", "கோழி", "ஆட்டிறைச்சி", "ஆட்டுக்கறி"]) {
+    assert.equal(categorySuggestion(item).category, "Groceries", item);
+  }
+});
+
+test("prepared chicken and mutton dishes stay in Food & Drinks", () => {
+  assert.equal(categorySuggestion("Chicken biryani").category, "Food & Drinks");
+  assert.equal(categorySuggestion("Mutton curry").category, "Food & Drinks");
+});

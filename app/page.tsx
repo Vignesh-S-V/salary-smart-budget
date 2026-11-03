@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { CATEGORIES, categorySuggestion } from "@/lib/category-utils.mjs";
 import FinanceModules from "./finance-modules";
 import StatementImport from "./statement-import";
 import { Area, AreaChart, CartesianGrid, Pie, PieChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -11,46 +12,8 @@ type Expense = { id:string; item_name:string; amount:number; quantity:number; ca
 type IncomeTransaction = { id:string; item_name:string; amount:number; income_type:"salary"|"other"|"refund"; received_at:string; notes:string|null; import_batch_id:string|null };
 type AccountTransfer = { id:string; item_name:string; amount:number; direction:"incoming"|"outgoing"; transferred_at:string; notes:string|null; import_batch_id:string|null };
 const COLORS = ["#1d5fd6","#477dde","#719be5","#9db9ec","#c8d7f4"];
-const CATEGORIES = ["Groceries","Medical","Transport","Bills","Loan","Food & Drinks","Personal Care","Shopping","Home & Essentials","Education","Entertainment","Investment & Savings","Other"];
 const money = (n:number) => new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR",minimumFractionDigits:2,maximumFractionDigits:2}).format(n||0);
 const today = () => new Date().toLocaleDateString("en-CA");
-const CATEGORY_RULES: Array<{category:string;pattern:RegExp;examples:string}> = [
- {category:"Groceries",pattern:/\b(coconut|thengai|rice|arisi|milk|paal|vegetable|vegetables|kaai|tomato|thakkali|onion|vengayam|grocery|groceries|oil|ennai|dal|dhal|paruppu|fruit|fruits|pazham|egg|eggs|bread|atta|flour|sugar|salt|masala|spice|provision|wheat|maida|curd|yogurt|butter|cheese|chicken|mutton|fish|meen|prawn|water can|mineral water|snacks packet|potato|urulaikizhangu|carrot|beans|keerai|banana|vazhaipazham|apple|orange|rice bag)\b/i,examples:"rice, milk, vegetables, coconut, dal"},
- {category:"Medical",pattern:/\b(tablet|tablets|medicine|medicines|medical|doctor|hospital|pharmacy|clinic|health|blood test|scan|xray|x-ray|medical shop|syrup|paracetamol|panadol|bandage|vitamin|consultation)\b/i,examples:"medicine, doctor, tablets"},
- {category:"Transport",pattern:/\b(petrol|diesel|fuel|bus|train|auto|cab|uber|ola|rapido|taxi|parking|toll|metro|travel ticket|bike service|car service|puncture|tyre|tire|petrol bunk)\b/i,examples:"petrol, bus, auto, parking"},
- {category:"Bills",pattern:/\b(eb bill|electricity|current bill|water bill|credit card bill|credit card payment|internet|wifi|broadband|recharge|rent|gas cylinder|mobile bill|phone bill|postpaid|prepaid|dth|subscription|insurance premium)\b/i,examples:"EB bill, electricity, credit card bill, recharge, rent"},
- {category:"Loan",pattern:/\b(loan|loans|emi|principal payment|loan repayment|loan installment)\b/i,examples:"personal loan, gold loan, home loan, car loan EMI"},
- {category:"Food & Drinks",pattern:/\b(hotel|restaurant|tea|coffee|snack|snacks|lunch|dinner|breakfast|juice|swiggy|zomato|food|meals|biriyani|biryani|dosa|dosai|idli|idl(i|y)|parotta|paratha|pizza|burger|bakery|cake|ice cream|icecream|tiffin|parcel food|sweets|juice shop|sappadu|saapadu|saapad|sambar|sambhar|rasam|vadai|vada|bajji|bonda|pongal|upma|chapati|chapathi|chappathi|poori|puri|vada pav|pav bhaji|puffs|bun|biscuit|milkshake|falooda|shawarma|rolls|fried rice|noodles|kothu parotta|curd rice|lemon rice|meals parcel|mess bill|canteen|tiffin kadai|tea kadai|coffee shop)\b/i,examples:"tea, meals, biryani, snacks"},
- {category:"Personal Care",pattern:/\b(hair\s*cut|haircut|hair\s*trim|barber|salon|beauty parlou?r|shave|shaving|beard trim|facial|threading|waxing|manicure|pedicure|nail salon|spa|grooming)\b/i,examples:"haircut, barber, salon, shaving, facial, grooming"},
- {category:"Shopping",pattern:/\b(shirt|shirts|dress|shoe|shoes|clothes|clothing|jeans|saree|sari|chappal|slippers|watch|bag|handbag|amazon|flipkart|myntra|online shopping|tshirt|t-shirt|uniform|belt|wallet|jewellery|jewelry|cosmetics|perfume)\b/i,examples:"shirt, shoes, clothes"},
- {category:"Home & Essentials",pattern:/\b(soap|detergent|washing powder|cleaner|bucket|utensil|vessel|broom|mop|house|home|dishwash|dish wash|toothpaste|toothbrush|shampoo|tissue|garbage bag|cleaning liquid|floor cleaner|bulb|battery|kitchen item|cooking gas stove)\b/i,examples:"soap, detergent, cleaning items"},
- {category:"Education",pattern:/\b(book|books|school|college|course|tuition|fees|school fees|college fees|notebook|pen|pencil|stationery|exam|training|class|education)\b/i,examples:"books, school fees, stationery"},
- {category:"Entertainment",pattern:/\b(movie|cinema|theatre|game|gaming|ott|netflix|prime video|hotstar|spotify|concert|outing|park ticket)\b/i,examples:"movie, OTT, games"},
- {category:"Investment & Savings",pattern:/\b(sip|s\.i\.p|crt sip|c\.r\.t\.?|mutual fund|mutual funds|stocks?|shares?|stock market|investment|investments|recurring deposit|fixed deposit|gold savings|gold scheme|chit fund|nps|ppf|elss|index fund|equity fund|mf investment|rd|fd|ppf|epf|nifty|sensex)\b/i,examples:"SIP, CRT SIP, mutual funds, stocks, savings deposits"}
-];
-function categorySuggestion(item:string) {
- const s=item.trim().toLowerCase();
- if(!s)return {category:"",matched:false,examples:""};
- const normalized=` ${s.normalize("NFKD").replace(/[^a-z0-9]+/g," ").replace(/\s+/g," ").trim()} `;
- const has=(phrase:string)=>normalized.includes(` ${phrase} `);
- const tokenPhrase=(phrases:string[])=>phrases.some(has);
-
- // Strong financial intent is resolved before restaurant and general expense words.
- if(tokenPhrase(["loan","loans","emi"]) || /\b(loan|emi)\b/.test(normalized))
-  return {category:"Loan",matched:true,examples:"personal loan, gold loan, home loan, car loan EMI"};
- if(tokenPhrase(["credit card bill","credit card payment","rent","electricity bill","electricity","current bill","water bill","internet bill","wifi bill","recharge","insurance premium","gas bill","mobile bill","phone bill","subscription","dth","d2h","d h tv","dish tv","tata play","sun direct","airtel digital tv","videocon d2h","tv recharge","tv bill"]) || /\\b(dth|d\\s*h)\\s*(tv)?\\b/.test(normalized))
-  return {category:"Bills",matched:true,examples:"credit card bill, electricity, DTH/TV recharge, Tata Play, rent"};
- if(tokenPhrase(["sip","crt sip","crt","mutual fund","mutual funds","stock","stocks","share","shares","share market","stock market","investment","investments","recurring deposit","fixed deposit","gold savings","gold scheme","chit fund","nps","ppf","elss","index fund","equity fund","nifty","sensex","ppf","epf","rd","fd"]))
-  return {category:"Investment & Savings",matched:true,examples:"SIP, CRT SIP, mutual funds, stocks, savings deposits"};
-
- // Acronym-safe fallbacks for entries typed without separators (CRT-SIP, S.I.P, RD, FD).
- const compact=normalized.replace(/\s/g,"");
- if(/(?:sip|crtsip)/.test(compact)||/\bcrtsip\b/.test(compact))
-  return {category:"Investment & Savings",matched:true,examples:"SIP, CRT SIP"};
-
- const rule=CATEGORY_RULES.find(x=>x.pattern.test(s));
- return rule?{category:rule.category,matched:true,examples:rule.examples}:{category:"Other",matched:false,examples:""};
-}
 function guessCategory(item:string) { return categorySuggestion(item).category || "Other"; }
 function categoryHint(item:string) { const result=categorySuggestion(item); if(!item.trim()) return "Enter the item name and we’ll suggest its category automatically."; return result.matched ? `Auto-suggested: ${result.category} · based on “${item.trim()}”. You can change it if needed.` : "Category isn’t clear from that item name, so we’ve selected Other. Add a little more detail for a better suggestion."; }
 export default function Home() {
@@ -264,7 +227,7 @@ export default function Home() {
       </>}
       {activeSection==="add-expense"&&<>
       <section className="panel expense-form-panel"><div className="panel-heading"><div><h2>Add an expense</h2><p>Category is suggested from the item name.</p></div></div>
-       <form onSubmit={saveExpense} className="expense-form"><label className="wide">What did you buy?<input className="field" required value={item} onChange={e=>{const value=e.target.value;setItem(value);if(!categoryManuallySelected){const match=guessCategory(value);if(match!=="Other")setCategory(match);else if(!value.trim())setCategory("Groceries");}}} placeholder="e.g. Rice and vegetables"/></label><label>Amount (₹)<input className="field" type="number" min="0.01" step="0.01" required value={amount} onChange={e=>setAmount(e.target.value)} placeholder="250.00"/></label><label>Quantity<input className="field" type="number" min="0.01" step="0.01" required value={qty} onChange={e=>setQty(e.target.value)}/></label><label>Category<select className="field" value={category} onChange={e=>{setCategory(e.target.value);setCategoryManuallySelected(true);}}>{categories.map(c=><option key={c}>{c}</option>)}</select></label><label>Date<input className="field" type="date" required value={spentAt} onChange={e=>setSpentAt(e.target.value)}/></label><label className="wide">Notes <span>(optional)</span><input className="field" value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Store, payment method, or note"/></label>{item&&<p className="category-hint wide">{categoryHint(item)}</p>}<button className="btn btn-primary wide expense-submit" disabled={saving}>{saving?"Saving…":"Save expense"}</button></form></section>
+       <form onSubmit={saveExpense} className="expense-form"><label className="wide">What did you buy?<input className="field" required value={item} onChange={e=>{const value=e.target.value;setItem(value);setCategoryManuallySelected(false);const suggestion=categorySuggestion(value);setCategory(value.trim()?(suggestion.matched?suggestion.category:"Other"):"Groceries");}} placeholder="e.g. Rice and vegetables"/></label><label>Amount (₹)<input className="field" type="number" min="0.01" step="0.01" required value={amount} onChange={e=>setAmount(e.target.value)} placeholder="250.00"/></label><label>Quantity<input className="field" type="number" min="0.01" step="0.01" required value={qty} onChange={e=>setQty(e.target.value)}/></label><label>Category<select className="field" value={category} onChange={e=>{setCategory(e.target.value);setCategoryManuallySelected(true);}}>{categories.map(c=><option key={c}>{c}</option>)}</select></label><label>Date<input className="field" type="date" required value={spentAt} onChange={e=>setSpentAt(e.target.value)}/></label><label className="wide">Notes <span>(optional)</span><input className="field" value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Store, payment method, or note"/></label>{item&&<p className="category-hint wide">{categoryHint(item)}</p>}<button className="btn btn-primary wide expense-submit" disabled={saving}>{saving?"Saving…":"Save expense"}</button></form></section>
 
       </>}
       {activeSection==="finance-report"&&<>
