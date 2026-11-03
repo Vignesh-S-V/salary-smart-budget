@@ -46,7 +46,6 @@ Deno.serve(async (req: Request) => {
 
     const body = await req.json().catch(() => ({}));
     const question = typeof body.question === "string" ? body.question.trim() : "";
-    const question = typeof body.question === "string" ? body.question.trim() : "";
     if (!question) return json({ error: "Enter a finance question." }, 400, origin);
     if (question.length > 1000) return json({ error: "Question is too long. Keep it under 1,000 characters." }, 400, origin);
     const requestedMonth = typeof body.month === "string" ? body.month : new Date().toISOString().slice(0, 7);
