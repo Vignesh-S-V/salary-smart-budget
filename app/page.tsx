@@ -65,8 +65,9 @@ export default function Home() {
  const monthTotal=currentExpenses.reduce((a,e)=>a+Number(e.amount),0);
  const salaryNum=Number(salary?.monthly_salary||0);
  const importedSalary=currentIncomes.filter(x=>x.income_type==="salary").reduce((sum,x)=>sum+Number(x.amount),0);
+ const salaryIncome=importedSalary>0?importedSalary:salaryNum;
  const otherIncome=currentIncomes.filter(x=>x.income_type!=="salary").reduce((sum,x)=>sum+Number(x.amount),0);
- const monthlyIncome=(importedSalary>0?importedSalary:salaryNum)+otherIncome;
+ const monthlyIncome=salaryIncome+otherIncome;
  const monthStart=month+"-01";
  const previousRecordedIncome=incomes.filter(x=>x.received_at<monthStart).reduce((sum,x)=>sum+Number(x.amount),0);
  const previousRecordedExpenses=expenses.filter(x=>x.spent_at<monthStart).reduce((sum,x)=>sum+Number(x.amount),0);
@@ -246,7 +247,7 @@ export default function Home() {
      {loading?<div className="panel loading-state"><RefreshCw className="spin" size={18}/> Loading your data…</div>:<>
       {activeSection==="overview"&&<>
       <section className="kpi-grid" aria-label="Monthly totals">
-       <article className="panel kpi"><span>Monthly income</span><strong>{money(monthlyIncome)}</strong><p>Salary basis: {money(salaryNum)} · Other credits: {money(otherIncome)}</p><div className="salary-actions"><button type="button" onClick={()=>{setSalaryAction("add");setSalaryInput("");setSalaryDate(today());setShowSalary(true);setError("");}}>Add salary</button><button type="button" disabled={!salary} onClick={()=>{setSalaryAction("change");setSalaryInput(String(salaryNum||""));setSalaryDate(today());setShowSalary(true);setError("");}}>Change salary</button></div></article>
+       <article className="panel kpi"><span>Monthly income</span><strong>{money(monthlyIncome)}</strong><p>Salary basis: {money(salaryIncome)} · Other credits: {money(otherIncome)}</p>{otherIncome>0&&<details style={{marginTop:8,fontSize:12}}><summary style={{cursor:"pointer"}}>View other-credit breakdown</summary><div style={{display:"grid",gap:5,marginTop:8}}>{currentIncomes.filter(x=>x.income_type!=="salary").map(x=><div key={x.id} style={{display:"flex",justifyContent:"space-between",gap:8}}><span>{x.item_name} · {x.notes?.match(/One-time income type:\\s*([^;]+)/i)?.[1]||(x.income_type==="refund"?"Refund":"Other income")}</span><strong>{money(Number(x.amount))}</strong></div>)}</div></details>}<div className="salary-actions"><button type="button" onClick={()=>{setSalaryAction("add");setSalaryInput("");setSalaryDate(today());setShowSalary(true);setError("");}}>Add salary</button><button type="button" disabled={!salary} onClick={()=>{setSalaryAction("change");setSalaryInput(String(salaryNum||""));setSalaryDate(today());setShowSalary(true);setError("");}}>Change salary</button></div></article>
        <article className="panel kpi"><span>Spent this month</span><strong>{money(monthTotal)}</strong><p>{month}</p></article>
        <article className="panel kpi kpi-primary"><span>Available balance · tracked estimate</span><strong>{money(balance)}</strong><p>Salary + this month’s income + {money(carryForwardBalance)} carried forward − {money(monthTotal)} expenses. This is not a live bank balance.</p></article>
        <article className="panel kpi"><span>Transactions</span><strong>{currentExpenses.length}</strong><p>{currentExpenses.length===1?"entry this month":"entries this month"}</p></article>
@@ -292,7 +293,7 @@ export default function Home() {
       {activeSection==="savings"&&<FinanceModules section="savings" userId={user.id} salary={salaryNum} expenses={expenses} month={month}/>}
       {activeSection==="forecast"&&<FinanceModules section="forecast" userId={user.id} salary={salaryNum} expenses={expenses} month={month}/>}
       {activeSection==="net-worth"&&<FinanceModules section="net-worth" userId={user.id} salary={salaryNum} expenses={expenses} month={month}/>}
-      {activeSection==="ai-finance"&&<FinanceModules section="ai-finance" userId={user.id} salary={salaryNum} expenses={expenses} month={month}/>}
+      {activeSection==="ai-finance"&&<FinanceModules section="ai-finance" userId={user.id} salary={salaryIncome} monthlyIncome={monthlyIncome} otherCredits={currentIncomes.filter(x=>x.income_type!=="salary")} expenses={expenses} month={month}/>}
       {activeSection==="investments"&&<>
 <section id="investments" className="panel investment-section">
        <div className="panel-heading investment-heading"><div><h2>Monthly savings & investment guide</h2><p>Explore options for your surplus. No investment can guarantee high returns with zero risk.</p></div><span className="budget-history-badge">India · INR</span></div>
