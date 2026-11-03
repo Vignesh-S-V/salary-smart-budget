@@ -251,20 +251,20 @@ export default function StatementImport({userId,onImported}:{userId:string;onImp
   <div className="panel-heading"><div><h2>Import bank statement</h2><p>Upload Excel or PDF. Transactions are saved to the account currently signed in.</p></div></div>
   <div style={{display:"flex",gap:12,alignItems:"center",flexWrap:"wrap"}}>
    <input type="file" accept=".pdf,.xlsx,.xls,.csv" onChange={e=>{setFile(e.target.files?.[0]||null);setRows([]);setError("");setMessage("");}}/>
-   <button className="btn btn-primary" type="button" disabled={!file||busy} onClick={preview}>{busy?"Reading…":"Read file"}</button>
+   <button className="btn btn-primary" type="button" disabled={!file||busy} onClick={preview}>{busy?(progress||"Reading…"):"Read file"}</button>
   </div>
-  <p className="module-help">PDF extraction works best with text-based bank statements. Scanned/image-only PDFs need OCR and are not supported by this first version. Only debit rows are added to Expenses; credits are shown but not saved.</p>
-  {error&&<p role="alert" className="state-error">{error}</p>}{message&&<p role="status" className="state-success">{message}</p>}
-  {!!rows.length&&<><div style={{display:"flex",gap:16,flexWrap:"wrap",margin:"16px 0"}}><strong>{rows.length} rows found</strong><span>{counts.debit} debits</span><span>{counts.credit} credits (not imported)</span><span>{counts.review} need review</span></div>
-   <div className="overflow-x-auto"><table><thead><tr><th>Date</th><th>Description</th><th>Amount</th><th>Direction</th><th>Category</th><th>Check</th></tr></thead><tbody>{rows.map((r,i)=><tr key={i}>
+  <p className="module-help">The parser reads only the Date, Particulars, Deposits, Withdrawals and Balance table. Scanned PDFs automatically use English OCR. Account/profile details outside the table are ignored. Review all extracted rows before import.</p>
+  {progress&&<p role="status" className="module-help">{progress}</p>}{error&&<p role="alert" className="state-error">{error}</p>}{message&&<p role="status" className="state-success">{message}</p>}
+  {!!rows.length&&<><div style={{display:"flex",gap:16,flexWrap:"wrap",margin:"16px 0"}}><strong>{rows.length} rows found</strong><span>{counts.debit} expenses</span><span>{counts.credit} income credits</span><span>{counts.transfers} own-account transfers</span><span>{counts.review} need review</span></div>
+   <div style={{margin:"12px 0",padding:14,border:"1px solid var(--border)",borderRadius:8}}><strong>Running-balance reconciliation</strong>{reconciliation.available?<p>{reconciliation.matched?"Balance matched within ₹1 tolerance.":"Balance does not match the transaction movements."} Opening: {money(reconciliation.openingBalance||0)} · Closing: {money(reconciliation.closingBalance||0)} · Calculated closing: {money(reconciliation.calculatedClosingBalance||0)} · Difference: {money(reconciliation.difference||0)}</p>:<p>Not available: {reconciliation.reason}</p>}</div><div className="overflow-x-auto"><table><thead><tr><th>Date</th><th>Description</th><th>Amount</th><th>Direction</th><th>Balance</th><th>Category</th><th>Check</th></tr></thead><tbody>{rows.map((r,i)=><tr key={i}>
     <td><input className="field" type="date" value={r.date} onChange={e=>edit(i,{date:e.target.value,confidence:"review"})}/></td>
     <td><input className="field" value={r.description} onChange={e=>edit(i,{description:e.target.value,confidence:"review"})}/></td>
     <td><input className="field" type="number" min="0.01" step="0.01" value={r.amount} onChange={e=>edit(i,{amount:Number(e.target.value),confidence:"review"})}/></td>
-    <td><select className="field" value={r.direction} onChange={e=>edit(i,{direction:e.target.value as Tx["direction"]})}><option value="debit">Debit</option><option value="credit">Credit</option></select></td>
-    <td><select className="field" value={r.category} onChange={e=>edit(i,{category:e.target.value})}>{CATEGORIES.map(c=><option key={c}>{c}</option>)}</select></td>
+    <td><select className="field" value={r.direction} onChange={e=>edit(i,{direction:e.target.value as Tx["direction"]})}><option value="debit">Expense</option><option value="credit">Income</option><option value="transfer_out">Transfer out</option><option value="transfer_in">Transfer in</option></select></td>
+    <td>{r.balance===null?"—":money(r.balance)}</td><td><select className="field" value={r.category} onChange={e=>edit(i,{category:e.target.value})}>{CATEGORIES.map(c=><option key={c}>{c}</option>)}</select></td>
     <td>{r.confidence==="high"?"Auto":"Review"}</td>
    </tr>)}</tbody></table></div>
-   <button className="btn btn-primary" style={{marginTop:16}} type="button" disabled={busy||!rows.some(x=>x.direction==="debit"&&x.amount>0)} onClick={importRows}>{busy?"Importing…":"Confirm & import debit transactions"}</button>
+   <button className="btn btn-primary" style={{marginTop:16}} type="button" disabled={busy||!rows.some(x=>x.amount>0)} onClick={importRows}>{busy?(progress||"Importing…"):"Confirm & import all transactions"}</button>
   </>}
  </section>;
 }
