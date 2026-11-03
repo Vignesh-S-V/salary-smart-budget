@@ -289,7 +289,7 @@ export default function Home() {
 <div className="panel repeats-panel"><div className="panel-heading"><div><h2>Repeat purchases</h2><p>More than one entry this month</p></div></div>{repeats.length?<div className="repeat-list">{repeats.map(x=><div key={x.name}><div><strong>{x.name}</strong><span>{x.count} entries · quantity {x.qty}</span></div><strong>{money(x.total)}</strong></div>)}</div>:<div className="empty-state"><Check size={22}/><p>Repeated items will appear here.</p></div>}</div>
       </>}
       {activeSection==="budget"&&<FinanceModules section="budget" userId={user.id} salary={monthlyIncome} expenses={expenses} month={month}/>}
-      {activeSection==="recurring-bills"&&<FinanceModules section="recurring-bills" userId={user.id} salary={salaryNum} expenses={expenses} month={month}/>}
+      {activeSection==="recurring-bills"&&<FinanceModules section="recurring-bills" userId={user.id} salary={monthlyIncome} expenses={expenses} month={month}/>}
       {activeSection==="loans"&&<FinanceModules section="loans" userId={user.id} salary={salaryNum} expenses={expenses} month={month}/>}
       {activeSection==="savings"&&<FinanceModules section="savings" userId={user.id} salary={salaryNum} expenses={expenses} month={month}/>}
       {activeSection==="forecast"&&<FinanceModules section="forecast" userId={user.id} salary={salaryNum} expenses={expenses} month={month}/>}
