@@ -63,14 +63,14 @@ test("flags a running-balance mismatch instead of silently accepting it", () => 
 
 import { categorySuggestion } from "../lib/category-utils.mjs";
 
-test("raw chicken and mutton purchases are classified as Groceries", () => {
-  for (const item of ["Chicken", "Mutton", "Mutton & Chicken", "Fresh chicken", "Mutton shop", "kozhi", "aadu"]) {
-    assert.equal(categorySuggestion(item).category, "Groceries", item);
+test("raw chicken, mutton and fish purchases use Meat & Poultry (Non-Veg)", () => {
+  for (const item of ["Chicken", "Mutton", "Mutton & Chicken", "Fresh chicken", "Mutton shop", "kozhi", "aadu", "Fish", "fresh fish", "Prawns", "Crab", "Squid", "seafood"]) {
+    assert.equal(categorySuggestion(item).category, "Meat & Poultry (Non-Veg)", item);
   }
 });
 
-test("Tamil meat purchase names are classified as Groceries", () => {
-  for (const item of ["சிக்கன்", "மட்டன்", "கோழி", "ஆட்டிறைச்சி", "ஆட்டுக்கறி"]) {
+test("Tamil meat and fish purchase names use Meat & Poultry (Non-Veg)", () => {
+  for (const item of ["சிக்கன்", "மட்டன்", "கோழி", "ஆட்டிறைச்சி", "ஆட்டுக்கறி", "மீன்", "இறால்", "நண்டு", "கணவாய்", "கருவாடு"]) {
     assert.equal(categorySuggestion(item).category, "Groceries", item);
   }
 });
@@ -78,4 +78,7 @@ test("Tamil meat purchase names are classified as Groceries", () => {
 test("prepared chicken and mutton dishes stay in Food & Drinks", () => {
   assert.equal(categorySuggestion("Chicken biryani").category, "Food & Drinks");
   assert.equal(categorySuggestion("Mutton curry").category, "Food & Drinks");
+  assert.equal(categorySuggestion("Fish fry").category, "Food & Drinks");
+  assert.equal(categorySuggestion("Chicken 65").category, "Food & Drinks");
+
 });

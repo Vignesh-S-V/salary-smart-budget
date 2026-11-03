@@ -2,6 +2,7 @@
 import {useCallback,useEffect,useMemo,useState} from "react";
 import type {CSSProperties,FormEvent} from "react";
 import {supabase} from "@/lib/supabase";
+import {CATEGORIES} from "@/lib/category-utils.mjs";
 
 type Expense={id:string;amount:number;category_name:string;spent_at:string;item_name:string};
 type Budget={id:string;category_name:string;planned_amount:number};
@@ -38,7 +39,7 @@ export default function FinanceModules({section,userId,salary,expenses,month}:Pr
  useEffect(()=>{void refresh()},[refresh]);
  const monthExpenses=useMemo(()=>expenses.filter(x=>x.spent_at.startsWith(month)),[expenses,month]);
  const actual=useMemo(()=>{const m=new Map<string,number>();monthExpenses.forEach(x=>m.set(x.category_name,(m.get(x.category_name)||0)+Number(x.amount)));return m},[monthExpenses]);
- const cats=Array.from(new Set(["Groceries","Medical","Transport","Bills","Loan","Food & Drinks","Personal Care","Shopping","Home & Essentials","Education","Entertainment","Investment & Savings","Other",...expenses.map(x=>x.category_name)])).sort();
+ const cats=Array.from(new Set([...CATEGORIES,...expenses.map(x=>x.category_name)])).sort();
  const planned=budgets.reduce((s,x)=>s+Number(x.planned_amount),0),budgetSpend=budgets.reduce((s,x)=>s+(actual.get(x.category_name)||0),0);
  const activeLoans=loans.filter(x=>x.status==="active"),activeBills=bills.filter(x=>x.is_active),activeGoals=goals.filter(x=>x.status==="active");
  const loanBalance=activeLoans.reduce((s,x)=>s+Number(x.outstanding_balance),0),emiTotal=activeLoans.reduce((s,x)=>s+Number(x.emi_amount),0);
