@@ -64,12 +64,29 @@ export default function Home() {
  const currentTransfers=useMemo(()=>transfers.filter(e=>e.transferred_at.startsWith(month)),[transfers,month]);
  const monthTotal=currentExpenses.reduce((a,e)=>a+Number(e.amount),0);
  const salaryNum=Number(salary?.monthly_salary||0);
- const importedSalary=currentIncomes.filter(x=>x.income_type==="salary").reduce((sum,x)=>sum+Number(x.amount),0);
- const salaryIncome=importedSalary>0?importedSalary:salaryNum;
+ const monthStart=month+"-01";
+ const salaryByMonth=new Map<string,Salary>();
+ salaryHistory.forEach(row=>{
+  const key=row.effective_from.slice(0,7);
+  const previous=salaryByMonth.get(key);
+  if(!previous||row.effective_from>previous.effective_from)salaryByMonth.set(key,row);
+ });
+ const salaryTransactionsByMonth=new Map<string,number>();
+ incomes.filter(x=>x.income_type==="salary").forEach(row=>{
+  const key=row.received_at.slice(0,7);
+  salaryTransactionsByMonth.set(key,(salaryTransactionsByMonth.get(key)||0)+Number(row.amount));
+ });
+ const importedSalary=salaryTransactionsByMonth.get(month)||0;
+ const salaryIncome=importedSalary>0?importedSalary:Number(salaryByMonth.get(month)?.monthly_salary||0);
  const otherIncome=currentIncomes.filter(x=>x.income_type!=="salary").reduce((sum,x)=>sum+Number(x.amount),0);
  const monthlyIncome=salaryIncome+otherIncome;
- const monthStart=month+"-01";
- const previousRecordedIncome=incomes.filter(x=>x.received_at<monthStart).reduce((sum,x)=>sum+Number(x.amount),0);
+ const transactionDates=[...incomes.map(x=>x.received_at),...expenses.map(x=>x.spent_at)].sort();
+ const firstLedgerMonth=transactionDates[0]?.slice(0,7)||month;
+ const previousTransactionIncome=incomes.filter(x=>x.received_at<monthStart).reduce((sum,x)=>sum+Number(x.amount),0);
+ const previousSalaryHistoryIncome=Array.from(salaryByMonth.entries())
+  .filter(([salaryMonth])=>salaryMonth>=firstLedgerMonth&&salaryMonth<month&&!((salaryTransactionsByMonth.get(salaryMonth)||0)>0))
+  .reduce((sum,[_salaryMonth,row])=>sum+Number(row.monthly_salary||0),0);
+ const previousRecordedIncome=previousTransactionIncome+previousSalaryHistoryIncome;
  const previousRecordedExpenses=expenses.filter(x=>x.spent_at<monthStart).reduce((sum,x)=>sum+Number(x.amount),0);
  const carryForwardBalance=previousRecordedIncome-previousRecordedExpenses;
  const trackedFunds=monthlyIncome+carryForwardBalance;
@@ -291,7 +308,7 @@ export default function Home() {
       {activeSection==="recurring-bills"&&<FinanceModules section="recurring-bills" userId={user.id} salary={monthlyIncome} expenses={expenses} month={month}/>}
       {activeSection==="loans"&&<FinanceModules section="loans" userId={user.id} salary={salaryNum} expenses={expenses} month={month}/>}
       {activeSection==="savings"&&<FinanceModules section="savings" userId={user.id} salary={salaryNum} expenses={expenses} month={month}/>}
-      {activeSection==="forecast"&&<FinanceModules section="forecast" userId={user.id} salary={salaryNum} expenses={expenses} month={month}/>}
+      {activeSection==="forecast"&&<FinanceModules section="forecast" userId={user.id} salary={salaryIncome} monthlyIncome={monthlyIncome} openingBalance={carryForwardBalance} availableBalance={balance} incomeRecords={incomes} salaryHistory={salaryHistory} expenses={expenses} month={month}/>}
       {activeSection==="net-worth"&&<FinanceModules section="net-worth" userId={user.id} salary={salaryNum} expenses={expenses} month={month}/>}
       {activeSection==="ai-finance"&&<FinanceModules section="ai-finance" userId={user.id} salary={salaryIncome} monthlyIncome={monthlyIncome} otherCredits={currentIncomes.filter(x=>x.income_type!=="salary")} expenses={expenses} month={month}/>}
       {activeSection==="investments"&&<>
