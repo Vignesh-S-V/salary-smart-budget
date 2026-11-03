@@ -81,7 +81,7 @@ export default function FinanceModules({section,userId,salary,monthlyIncome,othe
  const salaryBasisOnly=Math.max(0,salary-actualSalaryCredits);
  const currentAvailableBalance=availableBalance??(openingBalance+totalIncome-monthSpend);
  const currentCashFlowRows=[
-  ...currentActualCredits.map(x=>({id:"income-"+x.id,date:x.received_at,description:x.item_name,kind:x.notes?.match(/One-time income type:\\s*([^;]+)/i)?.[1]||(x.income_type==="salary"?"Salary credit":x.income_type==="refund"?"Refund":"Other income"),direction:"inflow" as const,amount:Number(x.amount)})),
+  ...currentActualCredits.map(x=>({id:"income-"+x.id,date:x.received_at,description:x.item_name,kind:x.notes?.match(/One-time income type:\s*([^;]+)/i)?.[1]||(x.income_type==="salary"?"Salary credit":x.income_type==="refund"?"Refund":"Other income"),direction:"inflow" as const,amount:Number(x.amount)})),
   ...monthExpenses.map(x=>({id:"expense-"+x.id,date:x.spent_at,description:x.item_name,kind:x.category_name,direction:"outflow" as const,amount:Number(x.amount)})),
  ].sort((a,b)=>a.date.localeCompare(b.date)||(a.direction==="inflow"?-1:1));
  const savingsAmount=totalIncome-monthSpend;
