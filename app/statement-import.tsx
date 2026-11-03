@@ -195,14 +195,18 @@ export default function StatementImport({userId,onImported}:{userId:string;onImp
    const fileHash=Array.from(new Uint8Array(hashBuffer)).map(x=>x.toString(16).padStart(2,"0")).join("");
    const {data:priorBatch,error:batchCheckError}=await supabase.from("statement_import_batches").select("id,status").eq("user_id",user.id).eq("file_sha256",fileHash).maybeSingle();
    if(batchCheckError)throw batchCheckError;
-   if(priorBatch?.status==="imported")throw new Error("This exact file has already been imported. Upload a different statement file or remove the previous import batch first.");
+   if(priorBatch?.status==="imported")throw new Error("This exact file has already been imported. It will not be imported twice.");
+   if(priorBatch?.status==="processing")throw new Error("An import of this exact file is already marked as processing. Refresh the page and check its transaction records before retrying.");
+   if(priorBatch?.status==="partial_error"){
+    const {error:removePartialError}=await supabase.from("statement_import_batches").delete().eq("id",priorBatch.id).eq("user_id",user.id);
+    if(removePartialError)throw removePartialError;
+   }
+   const fetchExistingPages=async(base:any)=>{let all:any[]=[];for(let from=0;;from+=1000){const {data,error}=await base.range(from,from+999);if(error)throw error;const part=data||[];all=all.concat(part);if(part.length<1000)break;}return all;};
    const [existingExpenses,existingIncome,existingTransfers]=await Promise.all([
-    supabase.from("expenses").select("spent_at,amount,item_name").eq("user_id",user.id).gte("spent_at",startDate).lte("spent_at",endDate),
-    supabase.from("income_transactions").select("received_at,amount,item_name,income_type").eq("user_id",user.id).gte("received_at",startDate).lte("received_at",endDate),
-    supabase.from("account_transfers").select("transferred_at,amount,item_name,direction").eq("user_id",user.id).gte("transferred_at",startDate).lte("transferred_at",endDate)
+    fetchExistingPages(supabase.from("expenses").select("spent_at,amount,item_name").eq("user_id",user.id).gte("spent_at",startDate).lte("spent_at",endDate).order("spent_at",{ascending:false}).order("id",{ascending:false})),
+    fetchExistingPages(supabase.from("income_transactions").select("received_at,amount,item_name,income_type").eq("user_id",user.id).gte("received_at",startDate).lte("received_at",endDate).order("received_at",{ascending:false}).order("id",{ascending:false})),
+    fetchExistingPages(supabase.from("account_transfers").select("transferred_at,amount,item_name,direction").eq("user_id",user.id).gte("transferred_at",startDate).lte("transferred_at",endDate).order("transferred_at",{ascending:false}).order("id",{ascending:false}))
    ]);
-   const lookupError=existingExpenses.error||existingIncome.error||existingTransfers.error;
-   if(lookupError)throw lookupError;
    const known=new Set<string>();
    (existingExpenses.data||[]).forEach((x:any)=>known.add(transactionFingerprint(x.spent_at,x.amount,x.item_name,"expense")));
    (existingIncome.data||[]).forEach((x:any)=>known.add(transactionFingerprint(x.received_at,x.amount,x.item_name,"income:"+x.income_type)));
