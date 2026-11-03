@@ -18,7 +18,7 @@ const currentMonth=()=>{const d=new Date();return `${d.getFullYear()}-${String(d
 const money=(n:number)=>new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR",maximumFractionDigits:0}).format(Number(n)||0);
 const Field=({label,children}:{label:string;children:React.ReactNode})=><label className="finance-field">{label}{children}</label>;
 export default function FinanceModules({section,userId,salary,monthlyIncome,otherCredits=[],openingBalance=0,availableBalance,incomeRecords=[],salaryHistory=[],expenses,month:requestedMonth}:Props){
- const month=/^\\d{4}-(0[1-9]|1[0-2])$/.test(requestedMonth)?requestedMonth:currentMonth();
+ const month=/^\d{4}-(0[1-9]|1[0-2])$/.test(requestedMonth)?requestedMonth:currentMonth();
  const totalIncome=monthlyIncome??salary;
  const [budgets,setBudgets]=useState<Budget[]>([]),[bills,setBills]=useState<Bill[]>([]),[loans,setLoans]=useState<Loan[]>([]),[goals,setGoals]=useState<Goal[]>([]),[worth,setWorth]=useState<Worth[]>([]);
  const [loading,setLoading]=useState(true),[saving,setSaving]=useState(false),[error,setError]=useState(""),[notice,setNotice]=useState("");
