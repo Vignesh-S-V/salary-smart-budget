@@ -5,7 +5,7 @@ const publicKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'sb_publishable_G
 
 export const supabase = createClient(publicUrl, publicKey, {
   auth: {
-    persistSession: false,
+    persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
   },
