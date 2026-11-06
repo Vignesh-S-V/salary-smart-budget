@@ -11,7 +11,7 @@ type Salary = { id:string; monthly_salary:number; effective_from:string; created
 type Expense = { id:string; item_name:string; amount:number; quantity:number; category_name:string; category_id?:string|null; spent_at:string; notes:string|null; import_batch_id?:string|null };
 type IncomeTransaction = { id:string; item_name:string; amount:number; income_type:"salary"|"other"|"refund"; received_at:string; notes:string|null; import_batch_id:string|null };
 type AccountTransfer = { id:string; item_name:string; amount:number; direction:"incoming"|"outgoing"; transferred_at:string; notes:string|null; import_batch_id:string|null };
-const COLORS = ["#1d5fd6","#477dde","#719be5","#9db9ec","#c8d7f4"];
+const COLORS = ["#f0783d","#efc36a","#253d59","#26a18f","#9a668e"];
 const money = (n:number) => new Intl.NumberFormat("en-IN",{style:"currency",currency:"INR",minimumFractionDigits:2,maximumFractionDigits:2}).format(n||0);
 const today = () => new Date().toLocaleDateString("en-CA");
 const currentMonth = () => { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}`; };
@@ -296,7 +296,7 @@ export default function Home() {
 <div className="panel repeats-panel"><div className="panel-heading"><div><h2>Repeat purchases</h2><p>More than one entry this month</p></div></div>{repeats.length?<div className="repeat-list">{repeats.map(x=><div key={x.name}><div><strong>{x.name}</strong><span>{x.count} entries · quantity {x.qty}</span></div><strong>{money(x.total)}</strong></div>)}</div>:<div className="empty-state"><Check size={22}/><p>Repeated items will appear here.</p></div>}</div>
        </section>
        <section className="overview-daily-grid">
-<div className="panel trend-panel"><div className="panel-heading"><div><h2>Daily spending</h2><p>Recorded spend · {month}</p></div><strong>{daily.length?money(Math.max(...daily.map(x=>x.total))):money(0)} peak</strong></div>{daily.length?<div className="trend-chart"><ResponsiveContainer width="100%" height="100%"><AreaChart data={daily} margin={{top:8,right:8,left:0,bottom:0}}><CartesianGrid stroke="#edf0f2" vertical={false}/><XAxis dataKey="date" tickLine={false} axisLine={false}/><YAxis tickLine={false} axisLine={false} width={52} tickFormatter={(v)=>`₹${v}`}/><Tooltip formatter={(v:any)=>money(Number(v))}/><Area type="monotone" dataKey="total" stroke="#1d5fd6" strokeWidth={2.5} fill="#edf3fc"/></AreaChart></ResponsiveContainer></div>:<div className="empty-state"><CalendarDays size={22}/><p>No daily activity yet.</p></div>}</div>
+<div className="panel trend-panel"><div className="panel-heading"><div><h2>Daily spending</h2><p>Recorded spend · {month}</p></div><strong>{daily.length?money(Math.max(...daily.map(x=>x.total))):money(0)} peak</strong></div>{daily.length?<div className="trend-chart"><ResponsiveContainer width="100%" height="100%"><AreaChart data={daily} margin={{top:8,right:8,left:0,bottom:0}}><CartesianGrid stroke="#edf0f2" vertical={false}/><XAxis dataKey="date" tickLine={false} axisLine={false}/><YAxis tickLine={false} axisLine={false} width={52} tickFormatter={(v)=>`₹${v}`}/><Tooltip formatter={(v:any)=>money(Number(v))}/><Area type="monotone" dataKey="total" stroke="#ef783d" strokeWidth={2.5} fill="#fff0e6"/></AreaChart></ResponsiveContainer></div>:<div className="empty-state"><CalendarDays size={22}/><p>No daily activity yet.</p></div>}</div>
        </section>
       </>}
       {activeSection==="add-expense"&&<>
