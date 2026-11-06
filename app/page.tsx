@@ -7,7 +7,7 @@ import StatementImport from "./statement-import";
 import { Area, AreaChart, CartesianGrid, Pie, PieChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { ArrowDownRight, ArrowUpRight, BadgeIndianRupee, CalendarDays, Check, ChevronDown, CircleHelp, CreditCard, LayoutDashboard, LogOut, Plus, RefreshCw, ShieldCheck, Sparkles, Wallet, X } from "lucide-react";
 
-type Salary = { id:string; monthly_salary:number; effective_from:string; note:string|null };
+type Salary = { id:string; monthly_salary:number; effective_from:string; created_at?:string; note:string|null };
 type Expense = { id:string; item_name:string; amount:number; quantity:number; category_name:string; category_id?:string|null; spent_at:string; notes:string|null; import_batch_id?:string|null };
 type IncomeTransaction = { id:string; item_name:string; amount:number; income_type:"salary"|"other"|"refund"; received_at:string; notes:string|null; import_batch_id:string|null };
 type AccountTransfer = { id:string; item_name:string; amount:number; direction:"incoming"|"outgoing"; transferred_at:string; notes:string|null; import_batch_id:string|null };
@@ -33,7 +33,7 @@ export default function Home() {
  const loadedUserId=useRef<string|null>(null);
  const user=session?.user;
  const load=useCallback(async(uid:string)=>{const client=supabase;if(!client)return;setLoading(true);setError("");try{
-  const [s,c]=await Promise.all([client.from("salary_history").select("*").eq("user_id",uid).order("effective_from",{ascending:false}),client.from("expense_categories").select("id,name").eq("user_id",uid).order("name")]);
+  const [s,c]=await Promise.all([client.from("salary_history").select("*").eq("user_id",uid).order("effective_from",{ascending:false}).order("created_at",{ascending:false}).order("id",{ascending:false}),client.from("expense_categories").select("id,name").eq("user_id",uid).order("name")]);
   if(s.error||c.error)throw s.error||c.error;
   const pageSize=1000;
   const fetchAll=async(table:string,orderColumn:string)=>{let all:any[]=[];for(let from=0;;from+=pageSize){const {data,error}=await client.from(table).select("*").eq("user_id",uid).order(orderColumn,{ascending:false}).order("id",{ascending:false}).range(from,from+pageSize-1);if(error)throw error;const batch=data||[];all=all.concat(batch);if(batch.length<pageSize)break;}return all;};
@@ -71,7 +71,7 @@ export default function Home() {
  salaryHistory.forEach(row=>{
   const key=row.effective_from.slice(0,7);
   const previous=salaryByMonth.get(key);
-  if(!previous||row.effective_from>previous.effective_from)salaryByMonth.set(key,row);
+  if(!previous||row.effective_from>previous.effective_from||(row.effective_from===previous.effective_from&&(row.created_at||"")>(previous.created_at||"")))salaryByMonth.set(key,row);
  });
  const salaryTransactionsByMonth=new Map<string,number>();
  incomes.filter(x=>x.income_type==="salary").forEach(row=>{
@@ -175,7 +175,27 @@ export default function Home() {
 
  async function auth(e:React.FormEvent){e.preventDefault();if(!supabase)return;setSaving(true);setError("");const res=signup?await supabase.auth.signUp({email,password}):await supabase.auth.signInWithPassword({email,password});if(res.error)setError(res.error.message);else if(signup&&!res.data.session)setNotice("Check your email to confirm your account, then sign in.");setSaving(false);}
  async function signout(){await supabase?.auth.signOut();setSession(null);}
- async function saveSalary(e:React.FormEvent){e.preventDefault();if(!supabase||!user)return;const n=Number(salaryInput);if(!Number.isFinite(n)||n<0){setError("Enter a valid salary amount.");return;}setSaving(true);const note=salaryAction==="change"?"Salary revised":salary?"Salary added":"Initial salary";const r=await supabase.from("salary_history").insert({user_id:user.id,monthly_salary:n,effective_from:salaryDate,note});if(r.error)setError(r.error.message);else{setNotice("Salary saved.");setSalaryInput("");setShowSalary(false);await load(user.id);}setSaving(false);}
+ async function saveSalary(e:React.FormEvent){
+   e.preventDefault();if(!supabase||!user)return;
+   const n=Number(salaryInput);
+   if(!Number.isFinite(n)||n<0||!salaryDate){setError("Enter a valid salary amount and effective date.");return;}
+   setSaving(true);setError("");setNotice("");
+   const note=salaryAction==="change"?"Salary revised":salaryHistory.length?"Salary added":"Initial salary";
+   try{
+    const {data,error:insertError}=await supabase.from("salary_history")
+     .insert({user_id:user.id,monthly_salary:n,effective_from:salaryDate,note})
+     .select("id,monthly_salary,effective_from,created_at,note").single();
+    if(insertError)throw insertError;
+    if(!data)throw new Error("Salary was not returned after saving. Refresh the page and verify the salary history.");
+    const saved=data as Salary;
+    setSalaryHistory(previous=>[saved,...previous]);
+    setSalary(previous=>!previous||saved.effective_from>=previous.effective_from?saved:previous);
+    setNotice(`Salary ${money(n)} saved and applied from ${salaryDate}.`);
+    setSalaryInput("");setShowSalary(false);setSalaryAction(null);
+    await load(user.id);
+   }catch(err){setError(err instanceof Error?err.message:"Unable to save salary. Please retry.");}
+   finally{setSaving(false);}
+  }
  async function saveExpense(e:React.FormEvent){e.preventDefault();if(!supabase||!user)return;const n=Number(amount),q=Number(qty);if(!item.trim()||!Number.isFinite(n)||n<=0||!Number.isFinite(q)||q<=0){setError("Enter an item, positive amount and quantity.");return;}setSaving(true);const suggestion=categorySuggestion(item);let cat=suggestion.category===MEAT_CATEGORY?MEAT_CATEGORY:categoryManuallySelected?category:suggestion.matched?suggestion.category:category;const cr=await supabase.from("expense_categories").upsert({user_id:user.id,name:cat},{onConflict:"user_id,name"}).select("id").single();const r=await supabase.from("expenses").insert({user_id:user.id,item_name:item.trim(),amount:n,quantity:q,category_id:cr.data?.id||null,category_name:cat,spent_at:spentAt,notes:notes.trim()||null});if(cr.error||r.error)setError(cr.error?.message||r.error?.message||"Unable to save expense.");else{setNotice(item+" saved · "+money(n)+" deducted from your balance.");setItem("");setAmount("");setQty("1");setNotes("");setCategoryManuallySelected(false);setCategory("Groceries");await load(user.id);}setSaving(false);}
  async function removeExpense(id:string){if(!supabase||!user)return;const r=await supabase.from("expenses").delete().eq("id",id).eq("user_id",user.id);if(r.error)setError(r.error.message);else await load(user.id);}
  async function saveOneTimeIncome(e:React.FormEvent){
