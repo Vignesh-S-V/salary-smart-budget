@@ -18,7 +18,7 @@ const currentMonth = () => { const d=new Date(); return `${d.getFullYear()}-${St
 function guessCategory(item:string) { return categorySuggestion(item).category || "Other"; }
 function categoryHint(item:string) { const result=categorySuggestion(item); if(!item.trim()) return "Enter the item name and we’ll suggest its category automatically."; return result.matched ? `Auto-suggested: ${result.category} · based on “${item.trim()}”. You can change it if needed.` : "Category isn’t clear from that item name, so we’ve selected Other. Add a little more detail for a better suggestion."; }
 export default function Home() {
- const [session,setSession]=useState<any>(null),[email,setEmail]=useState(""),[password,setPassword]=useState(""),[signup,setSignup]=useState(false);
+ const [session,setSession]=useState<any>(null),[email,setEmail]=useState(""),[password,setPassword]=useState(""),[signup,setSignup]=useState(false),[confirmationPending,setConfirmationPending]=useState(false);
  const [salary,setSalary]=useState<Salary|null>(null),[salaryHistory,setSalaryHistory]=useState<Salary[]>([]),[expenses,setExpenses]=useState<Expense[]>([]),[incomes,setIncomes]=useState<IncomeTransaction[]>([]),[transfers,setTransfers]=useState<AccountTransfer[]>([]);
  const [salaryInput,setSalaryInput]=useState(""),[salaryDate,setSalaryDate]=useState(today()),[showSalary,setShowSalary]=useState(false),[salaryAction,setSalaryAction]=useState<"add"|"change"|null>(null);
  const [oneTimeIncomeKind,setOneTimeIncomeKind]=useState("Bonus"),[oneTimeIncomeSource,setOneTimeIncomeSource]=useState("Bonus"),[oneTimeIncomeAmount,setOneTimeIncomeAmount]=useState("25500"),[oneTimeIncomeDate,setOneTimeIncomeDate]=useState(today());
@@ -66,7 +66,7 @@ export default function Home() {
  // session on that return path as well, so the user must sign in again.
  useEffect(()=>{
   if(typeof window==="undefined")return;
-  try{window.localStorage.removeItem("sb-ssgbabvtmijhkrqgyrmp-auth-token");}catch{}
+  // Preserve the Supabase session so email-confirmation redirects can finish signing in.
   const handlePageShow=(event:PageTransitionEvent)=>{
    if(!event.persisted)return;
    setSession(null);loadedUserId.current=null;
@@ -190,19 +190,38 @@ export default function Home() {
  const budgetHistoryReady=budgetHistoryMonths.length>=2;
  const budgetPlannedTotal=budget.reduce((sum,x)=>sum+x.planned,0);
 
+ const authRedirectTo=()=>typeof window!=="undefined"
+  ? `${window.location.origin}${window.location.pathname}`
+  : "https://vignesh-s-v.github.io/salary-smart-budget/";
  async function auth(e:React.FormEvent){
   e.preventDefault();if(!supabase)return;
   setSaving(true);setError("");setNotice("");
   try{
-   const redirectTo=typeof window!=="undefined"
-    ? `${window.location.origin}${window.location.pathname}`
-    : "https://vignesh-s-v.github.io/salary-smart-budget/";
+   const normalizedEmail=email.trim().toLowerCase();
    const res=signup
-    ? await supabase.auth.signUp({email:email.trim(),password,options:{emailRedirectTo:redirectTo}})
-    : await supabase.auth.signInWithPassword({email:email.trim(),password});
-   if(res.error)setError(res.error.message);
-   else if(signup&&!res.data.session)setNotice("Account created. Open the confirmation email; the link will return you to Salary Smart. After confirmation, sign in with your email and password.");
+    ? await supabase.auth.signUp({email:normalizedEmail,password,options:{emailRedirectTo:authRedirectTo()}})
+    : await supabase.auth.signInWithPassword({email:normalizedEmail,password});
+   if(res.error){setError(res.error.message);return;}
+   if(signup){
+    if(res.data.session){setConfirmationPending(false);setNotice("Account confirmed. Signed in successfully.");}
+    else{
+     setConfirmationPending(true);
+     setNotice("If this email is not confirmed, a verification link will be sent. Already verified? Choose Sign in instead. Check Spam/Junk too.");
+    }
+   }else setConfirmationPending(false);
   }catch(err){setError(err instanceof Error?err.message:"Authentication failed. Please try again.");}
+  finally{setSaving(false);}
+ }
+ async function resendConfirmation(){
+  if(!supabase||!email.trim())return;
+  setSaving(true);setError("");setNotice("");
+  try{
+   const {error:resendError}=await supabase.auth.resend({
+    type:"signup",email:email.trim().toLowerCase(),options:{emailRedirectTo:authRedirectTo()}
+   });
+   if(resendError)throw resendError;
+   setNotice("If your account still needs confirmation, another email has been requested. Check Inbox and Spam. Sending limits may apply.");
+  }catch(err){setError(err instanceof Error?err.message:"Could not resend confirmation email. Try again later.");}
   finally{setSaving(false);}
  }
  async function signout(){await supabase?.auth.signOut();setSession(null);}
@@ -289,7 +308,8 @@ export default function Home() {
       {notice&&<p role="status" aria-live="polite" className="state-success">{notice}</p>}
       <button className="btn btn-primary auth-submit" disabled={saving||!supabase}>{saving?"Please wait…":!supabase?"Supabase setup required":signup?"Create account":"Sign in"}</button>
      </form>
-     <button className="auth-switch" disabled={!supabase} onClick={()=>{setSignup(!signup);setError("");}}>{signup?"Already registered? Sign in":"New here? Create an account"}</button>
+     {signup&&confirmationPending&&<button type="button" className="auth-switch" disabled={saving||!supabase} onClick={resendConfirmation}>Resend confirmation email</button>}
+     <button type="button" className="auth-switch" disabled={!supabase} onClick={()=>{setSignup(!signup);setConfirmationPending(false);setError("");setNotice("");}}>{signup?"Already registered? Sign in":"New here? Create an account"}</button>
      <p className="auth-security"><ShieldCheck size={15}/> Supabase Auth · Row-level security</p>
     </section>
    </main>
