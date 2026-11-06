@@ -2328,3 +2328,32 @@ table td { color: #405674 !important; border-bottom-color: #edf1f5 !important; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; scroll-behavior: auto !important; }
 }
+
+
+/* KPI accent rails — restore after generic panel pseudo-element reset.
+   The KPI cards are also .panel elements, so the later .panel::before
+   reset was hiding the colored rails from the ThreadIQ reference. */
+.kpi.panel { position: relative !important; overflow: hidden !important; }
+.kpi.panel::before {
+  content: "" !important;
+  display: block !important;
+  position: absolute !important;
+  z-index: 3 !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  width: 6px !important;
+  border-radius: 17px 0 0 17px !important;
+  background: linear-gradient(180deg,#ffb27e 0%,#ed6c31 100%) !important;
+  opacity: 1 !important;
+  pointer-events: none !important;
+}
+.kpi.panel:nth-child(2)::before {
+  background: linear-gradient(180deg,#9bc9ef 0%,#2875b8 100%) !important;
+}
+.kpi.panel:nth-child(3)::before {
+  background: linear-gradient(180deg,#8ce2d1 0%,#159b83 100%) !important;
+}
+.kpi.panel:nth-child(4)::before {
+  background: linear-gradient(180deg,#c4a7f5 0%,#7653c6 100%) !important;
+}
