@@ -190,7 +190,21 @@ export default function Home() {
  const budgetHistoryReady=budgetHistoryMonths.length>=2;
  const budgetPlannedTotal=budget.reduce((sum,x)=>sum+x.planned,0);
 
- async function auth(e:React.FormEvent){e.preventDefault();if(!supabase)return;setSaving(true);setError("");const res=signup?await supabase.auth.signUp({email,password}):await supabase.auth.signInWithPassword({email,password});if(res.error)setError(res.error.message);else if(signup&&!res.data.session)setNotice("Check your email to confirm your account, then sign in.");setSaving(false);}
+ async function auth(e:React.FormEvent){
+  e.preventDefault();if(!supabase)return;
+  setSaving(true);setError("");setNotice("");
+  try{
+   const redirectTo=typeof window!=="undefined"
+    ? `${window.location.origin}${window.location.pathname}`
+    : "https://vignesh-s-v.github.io/salary-smart-budget/";
+   const res=signup
+    ? await supabase.auth.signUp({email:email.trim(),password,options:{emailRedirectTo:redirectTo}})
+    : await supabase.auth.signInWithPassword({email:email.trim(),password});
+   if(res.error)setError(res.error.message);
+   else if(signup&&!res.data.session)setNotice("Account created. Open the confirmation email; the link will return you to Salary Smart. After confirmation, sign in with your email and password.");
+  }catch(err){setError(err instanceof Error?err.message:"Authentication failed. Please try again.");}
+  finally{setSaving(false);}
+ }
  async function signout(){await supabase?.auth.signOut();setSession(null);}
  async function saveSalary(e:React.FormEvent){
    e.preventDefault();if(!supabase||!user)return;
