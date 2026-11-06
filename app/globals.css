@@ -1793,3 +1793,245 @@ body::after {
 @media (prefers-reduced-motion: reduce) {
   .dashboard-content footer::after { animation: none !important; }
 }
+
+
+/* =========================================================
+   Analytics / ThreadIQ visual theme port
+   Theme-only override: keep Salary Smart layout and behavior.
+   Source palette: Vignesh-S-V/Analytics (ThreadIQ professional white theme)
+   ========================================================= */
+:root {
+  --ground: #f5f8fc;
+  --surface: #ffffff;
+  --soft: #f7faff;
+  --border: #e1e8f2;
+  --text: #17243b;
+  --muted: #64748b;
+  --accent: #167dca;
+  --accent-soft: #eaf3ff;
+  --negative: #d9485f;
+  --positive: #15945b;
+  --threadiq-blue: #176bce;
+  --threadiq-orange: #e07842;
+}
+html, body {
+  background: #f5f8fc !important;
+  color: #17243b !important;
+}
+body {
+  background:
+    radial-gradient(ellipse at 65% -25%, rgba(213,231,252,.70) 0, transparent 52%),
+    linear-gradient(135deg, #f8fbff 0%, #f1f6fc 55%, #fff 100%) !important;
+  background-attachment: fixed;
+}
+body::before, body::after { display: none !important; }
+::selection { background: #d9eaff; color: #173b65; }
+a { color: #176bce; }
+.muted, .page-title-row p, .panel-heading p, .module-help,
+.finance-report-note, .investment-disclaimer { color: #64748b !important; }
+
+/* Main frame: retain the existing Salary Smart navigation and content layout */
+.dashboard-shell { background: transparent !important; }
+.dashboard-sidebar {
+  background: rgba(255,255,255,.96) !important;
+  color: #17243b !important;
+  border-right: 1px solid #e2eaf4 !important;
+  box-shadow: 8px 0 30px rgba(38,74,120,.055) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+}
+.sidebar-brand strong { color: #14213a !important; }
+.sidebar-brand span, .sidebar-account > span { color: #64748b !important; }
+.brand-mark {
+  background: linear-gradient(145deg,#d8ecff,#a9d4ff) !important;
+  color: #1266bd !important;
+  border: 1px solid #c5e0ff !important;
+  box-shadow: 0 8px 20px rgba(37,99,235,.18) !important;
+}
+.dashboard-nav button {
+  color: #52627a !important;
+  border: 1px solid transparent !important;
+  transition: background .18s ease, color .18s ease, transform .18s ease, box-shadow .18s ease !important;
+}
+.dashboard-nav button:hover {
+  background: #eef5ff !important;
+  color: #165fba !important;
+  transform: translateX(2px);
+}
+.dashboard-nav button.active {
+  color: #145fc0 !important;
+  background: linear-gradient(90deg,#e1efff,#f1f7ff) !important;
+  border-color: #d5e7fb !important;
+  box-shadow: inset 3px 0 #2684ff, 0 4px 12px rgba(37,99,235,.07) !important;
+}
+.dashboard-nav button.active svg { color: #176bce !important; }
+.sidebar-account { border-top-color: #e2eaf4 !important; }
+.signout-button { color: #42536c !important; }
+.signout-button:hover { color: #176bce !important; background: #eef5ff !important; }
+.dashboard-canvas { background: transparent !important; }
+.dashboard-content { color: #17243b !important; }
+
+/* Analytics page heading / toolbar */
+.page-title-row {
+  background: linear-gradient(145deg, rgba(255,255,255,.98), rgba(248,251,255,.98)) !important;
+  border: 1px solid #e2eaf4 !important;
+  border-radius: 16px !important;
+  box-shadow: 0 10px 24px rgba(33,68,111,.055), 0 2px 5px rgba(33,68,111,.025), inset 0 1px 0 #fff !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+}
+.page-title-row::after { display: none !important; }
+.page-title-row h1 { color: #14213a !important; text-shadow: none !important; }
+.page-title-row p { color: #64748b !important; }
+.overview-actions label { color: #526680 !important; }
+
+/* Shared white panels and cards from ThreadIQ */
+.panel, .category-panel, .repeats-panel, .trend-panel, .finance-report,
+.expense-form-panel, .salary-panel, .budget-section, .investment-section,
+.transaction-section, .finance-module {
+  background: linear-gradient(145deg,#fff 0%,#fbfdff 100%) !important;
+  border: 1px solid #e2eaf4 !important;
+  border-radius: 15px !important;
+  color: #17243b !important;
+  box-shadow: 0 10px 24px rgba(33,68,111,.07), 0 2px 5px rgba(33,68,111,.035), inset 0 1px 0 #fff !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease !important;
+}
+.panel::before, .finance-module::before { display: none !important; }
+.panel-heading h2, .panel h2, .panel-heading h3 { color: #14213a !important; }
+.panel-heading p { color: #64748b !important; }
+@media (hover:hover) {
+  .panel:hover, .finance-module:hover {
+    transform: translateY(-2px);
+    border-color: #d4e4f6 !important;
+    box-shadow: 0 16px 32px rgba(33,68,111,.11), 0 4px 8px rgba(33,68,111,.045), inset 0 1px 0 #fff !important;
+  }
+}
+
+/* KPI cards: same restrained white-card language as Analytics */
+.kpi {
+  color: #17243b !important;
+  background: linear-gradient(145deg,#fff 0%,#fbfdff 100%) !important;
+  border: 1px solid #e2eaf4 !important;
+  border-radius: 15px !important;
+  box-shadow: 0 10px 24px rgba(33,68,111,.07), 0 2px 5px rgba(33,68,111,.035), inset 0 1px 0 #fff !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease !important;
+}
+.kpi:nth-child(1), .kpi:nth-child(2), .kpi:nth-child(3), .kpi:nth-child(4), .kpi-primary {
+  background: linear-gradient(145deg,#fff 0%,#fbfdff 100%) !important;
+}
+.kpi::before, .kpi::after { display: none !important; }
+.kpi > span { color: #64748b !important; }
+.kpi > strong { color: #183044 !important; text-shadow: none !important; }
+.kpi > p { color: #71849a !important; }
+.kpi .salary-actions button { color: #176bce !important; text-decoration-color: rgba(23,107,206,.45) !important; }
+@media (hover:hover) {
+  .kpi:hover {
+    transform: translateY(-2px) !important;
+    border-color: #d4e4f6 !important;
+    background: linear-gradient(145deg,#fff 0%,#f7fbff 100%) !important;
+    box-shadow: 0 16px 32px rgba(33,68,111,.11), 0 4px 8px rgba(33,68,111,.045), inset 0 1px 0 #fff !important;
+    filter: none !important;
+  }
+}
+
+/* Analytics-style controls, tables and chart surfaces */
+.field {
+  color: #34445d !important;
+  color-scheme: light !important;
+  background: #fff !important;
+  border: 1px solid #dbe5f1 !important;
+  border-radius: 9px !important;
+  box-shadow: 0 3px 9px rgba(22,48,83,.035) !important;
+}
+.field::placeholder { color: #98a2b3 !important; }
+.field:hover { background: #fff !important; border-color: #b9d3ef !important; }
+.field:focus { border-color: #6ca9e8 !important; outline: 0 !important; box-shadow: 0 0 0 3px rgba(37,99,235,.10) !important; }
+select.field option { color: #34445d; background: #fff; }
+.btn-primary {
+  color: #fff !important;
+  background: linear-gradient(135deg,#287fce,#1766b8) !important;
+  border: 1px solid #1766b8 !important;
+  box-shadow: 0 6px 16px rgba(37,99,235,.16) !important;
+}
+.btn-primary:hover { background: linear-gradient(135deg,#1d70bf,#155aa5) !important; transform: translateY(-1px); }
+.btn-muted, .icon-button, .remove-button {
+  color: #42536c !important;
+  background: #fff !important;
+  border-color: #dbe5f1 !important;
+}
+table th { color: #61738e !important; background: #f8fafc !important; border-bottom-color: #e2eaf4 !important; }
+table td { color: #42536c !important; border-bottom-color: #edf1f7 !important; }
+.transaction-item strong { color: #1b2b44 !important; }
+.transaction-item span { color: #74849a !important; }
+.category-list > div, .repeat-list > div { border-color: #e6edf6 !important; }
+.category-list > div, .repeat-list > div > div strong, .repeat-list > div > strong { color: #40546d !important; }
+.category-list strong { color: #263b58 !important; }
+.category-list span, .repeat-list span { color: #718198 !important; }
+.chart-center strong { color: #182944 !important; }
+.chart-center span { color: #71819a !important; }
+.recharts-cartesian-grid-horizontal line, .recharts-cartesian-grid-vertical line { stroke: #e6edf6 !important; }
+.recharts-cartesian-axis-tick text { fill: #687b96 !important; }
+.recharts-tooltip-wrapper .recharts-default-tooltip {
+  color: #263b58 !important;
+  background: rgba(255,255,255,.98) !important;
+  border: 1px solid #dce6f2 !important;
+  border-radius: 9px !important;
+  box-shadow: 0 12px 28px rgba(22,48,83,.12) !important;
+}
+.recharts-tooltip-label, .recharts-tooltip-item { color: #263b58 !important; }
+
+/* Liquid-free, understated ThreadIQ footer treatment */
+.dashboard-content footer {
+  color: #667b95 !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-top: 1px solid #e2eaf4 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  min-height: 0 !important;
+  margin-top: 22px !important;
+  padding: 16px 1px 2px !important;
+  font-size: 10px !important;
+}
+.dashboard-content footer::before, .dashboard-content footer::after { display: none !important; }
+.dashboard-content footer span, .dashboard-content footer span:first-child { color: #667b95 !important; font-weight: 500 !important; }
+.dashboard-content footer svg { color: #176bce !important; }
+
+/* Auth, mobile navigation and status states use the same light theme */
+.auth-shell { background: linear-gradient(135deg,#eef5ff,#f8fafc) !important; }
+.auth-panel {
+  background: #fff !important;
+  border: 1px solid #e1e8f2 !important;
+  box-shadow: 0 20px 60px rgba(16,24,40,.09) !important;
+  backdrop-filter: none !important;
+}
+.auth-panel h1 { color: #14213a !important; }
+.auth-intro, .auth-security { color: #64748b !important; }
+.auth-security { border-color: #e2eaf4 !important; }
+.auth-switch { color: #2563eb !important; }
+.state-error { color: #b42318 !important; }
+.state-success { color: #087f5b !important; }
+.mobile-header, .mobile-nav {
+  color: #17243b !important;
+  background: rgba(255,255,255,.94) !important;
+  border-color: #e2eaf4 !important;
+  box-shadow: 0 4px 14px rgba(38,74,120,.045) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+}
+.mobile-nav button { color: #52627a !important; }
+.mobile-nav button:hover, .mobile-nav button.active {
+  color: #145fc0 !important;
+  background: #e1efff !important;
+  border-color: #d5e7fb !important;
+}
+@media (max-width: 680px) {
+  .page-title-row { background: linear-gradient(145deg,#fff,#f8fbff) !important; }
+  .dashboard-content footer { align-items: flex-start; flex-direction: column; }
+}
