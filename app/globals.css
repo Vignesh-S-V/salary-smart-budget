@@ -2035,3 +2035,296 @@ table td { color: #42536c !important; border-bottom-color: #edf1f7 !important; }
   .page-title-row { background: linear-gradient(145deg,#fff,#f8fbff) !important; }
   .dashboard-content footer { align-items: flex-start; flex-direction: column; }
 }
+
+
+/* =========================================================
+   THREADIQ REFERENCE THEME — exact light/orange visual direction
+   Theme-only overrides; preserve Salary Smart structure and behavior.
+   ========================================================= */
+:root {
+  --ground: #f5f7fa !important;
+  --surface: #ffffff !important;
+  --soft: #f7f9fc !important;
+  --border: #e3e9f1 !important;
+  --text: #1b3154 !important;
+  --muted: #7588a5 !important;
+  --accent: #ff742f !important;
+  --accent-soft: #fff2e9 !important;
+  --negative: #e34d4d !important;
+  --positive: #159b83 !important;
+}
+html, body { background: #f5f7fa !important; color: #1b3154 !important; }
+body {
+  background: #f5f7fa !important;
+  color: #1b3154 !important;
+  font-family: var(--font-manrope), Inter, Arial, sans-serif !important;
+}
+::selection { background: #ffe1d0 !important; color: #1b3154 !important; }
+a { color: #f06c2b; }
+
+/* Workspace frame and left navigation */
+.dashboard-shell { grid-template-columns: 286px minmax(0,1fr) !important; background: #f5f7fa !important; }
+.dashboard-sidebar {
+  background: #fff !important;
+  color: #1b3154 !important;
+  border-right: 1px solid #e6ebf2 !important;
+  box-shadow: 5px 0 22px rgba(29,49,79,.035) !important;
+  padding: 24px 18px 18px !important;
+}
+.sidebar-brand { padding: 0 8px !important; gap: 13px !important; }
+.brand-mark {
+  width: 48px !important; height: 48px !important; border-radius: 15px !important;
+  color: #fff !important;
+  background: linear-gradient(145deg,#ffad76,#f36d32) !important;
+  box-shadow: 0 8px 20px rgba(243,109,50,.20) !important;
+}
+.sidebar-brand strong { color: #1b3154 !important; font-size: 20px !important; letter-spacing: -.5px !important; }
+.sidebar-brand span { color: #8292aa !important; font-size: 10px !important; letter-spacing: 1.6px !important; text-transform: uppercase !important; }
+.dashboard-nav { margin-top: 36px !important; gap: 7px !important; }
+.dashboard-nav button {
+  min-height: 48px !important;
+  padding: 11px 13px !important;
+  border: 1px solid transparent !important;
+  border-radius: 13px !important;
+  color: #637895 !important;
+  font-size: 13px !important;
+  font-weight: 650 !important;
+  transition: background .18s ease,color .18s ease,border-color .18s ease,transform .18s ease !important;
+}
+.dashboard-nav button:hover {
+  color: #ed6b2d !important;
+  background: #fff7f2 !important;
+  transform: translateX(2px) !important;
+}
+.dashboard-nav button.active {
+  color: #ef682b !important;
+  background: #fff6f0 !important;
+  border-color: #ffddca !important;
+  box-shadow: inset 3px 0 #ff742f !important;
+}
+.sidebar-account { border-top: 1px solid #e8edf3 !important; }
+.sidebar-account > span { color: #8292aa !important; }
+.signout-button { color: #526783 !important; border-radius: 9px !important; }
+.signout-button:hover { color: #ef682b !important; background: #fff6f0 !important; }
+.dashboard-canvas { min-width: 0; background: #f5f7fa !important; }
+.dashboard-content {
+  width: min(1500px, calc(100% - 76px)) !important;
+  padding: 42px 0 22px !important;
+  color: #1b3154 !important;
+}
+
+/* Clean title row: no glass card, just the spacious ThreadIQ page heading */
+.page-title-row {
+  min-height: 126px !important;
+  align-items: flex-end !important;
+  margin-bottom: 25px !important;
+  padding: 0 0 4px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+.page-title-row::before, .page-title-row::after { display: none !important; }
+.page-title-row h1 {
+  color: #1b3154 !important;
+  font-size: clamp(34px,3.2vw,48px) !important;
+  font-weight: 800 !important;
+  letter-spacing: -2px !important;
+  line-height: 1.08 !important;
+  text-shadow: none !important;
+}
+.page-title-row p { color: #7a8da9 !important; font-size: 14px !important; margin-top: 12px !important; }
+.overview-actions label { color: #6f829e !important; font-size: 11px !important; }
+.field {
+  background: #fff !important; color: #344b6c !important;
+  border: 1px solid #e0e7f0 !important; border-radius: 12px !important;
+  box-shadow: 0 4px 12px rgba(29,49,79,.035) !important;
+}
+.field:hover { border-color: #ffc6a6 !important; }
+.field:focus { border-color: #ff9a67 !important; outline: 3px solid #fff0e7 !important; }
+
+/* ThreadIQ's white cards with fine borders, soft shadow and colored KPI rails */
+.kpi-grid { gap: 16px !important; margin-bottom: 20px !important; }
+.kpi {
+  min-height: 196px !important;
+  padding: 25px 24px 22px 28px !important;
+  border: 1px solid #e1e8f1 !important;
+  border-radius: 17px !important;
+  background: #fff !important;
+  color: #1b3154 !important;
+  box-shadow: 0 9px 22px rgba(28,48,76,.075), 0 2px 5px rgba(28,48,76,.025) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  transition: transform .2s ease,box-shadow .2s ease,border-color .2s ease !important;
+}
+.kpi::before {
+  content: "" !important;
+  display: block !important;
+  position: absolute !important;
+  inset: 0 auto 0 0 !important;
+  width: 6px !important;
+  border-radius: 17px 0 0 17px !important;
+  background: linear-gradient(180deg,#ffb27e,#ed6c31) !important;
+}
+.kpi::after { display: none !important; }
+.kpi:nth-child(2)::before { background: linear-gradient(180deg,#9bc9ef,#2875b8) !important; }
+.kpi:nth-child(3)::before { background: linear-gradient(180deg,#8ce2d1,#159b83) !important; }
+.kpi:nth-child(4)::before { background: linear-gradient(180deg,#c4a7f5,#7653c6) !important; }
+.kpi:nth-child(1), .kpi:nth-child(2), .kpi:nth-child(3), .kpi:nth-child(4), .kpi-primary {
+  background: #fff !important;
+}
+.kpi > span {
+  color: #7a8da8 !important; font-size: 13px !important; font-weight: 750 !important;
+}
+.kpi > strong {
+  color: #1b3154 !important; font-size: clamp(25px,2.2vw,34px) !important;
+  font-weight: 800 !important; letter-spacing: -1.1px !important; margin-top: 19px !important;
+  text-shadow: none !important;
+}
+.kpi > p { color: #7a8da8 !important; font-size: 12px !important; line-height: 1.55 !important; }
+.kpi .salary-actions button { color: #ef6c30 !important; text-decoration-color: #f4b18f !important; }
+.kpi:hover {
+  transform: translateY(-3px) !important;
+  background: #fff !important;
+  border-color: #d5e2ef !important;
+  box-shadow: 0 15px 30px rgba(28,48,76,.10) !important;
+  filter: none !important;
+}
+
+/* Spacious analytics panels, white chart surfaces and typography */
+.overview-chart-grid { grid-template-columns: minmax(0,1.45fr) minmax(320px,.85fr) !important; gap: 18px !important; }
+.overview-chart-grid > .category-panel,
+.overview-chart-grid > .repeats-panel,
+.overview-daily-grid > .trend-panel {
+  padding: 23px !important;
+  border: 1px solid #e2e9f1 !important;
+  border-radius: 18px !important;
+  background: #fff !important;
+  box-shadow: 0 8px 22px rgba(28,48,76,.055) !important;
+}
+.panel, .category-panel, .repeats-panel, .trend-panel, .finance-report,
+.expense-form-panel, .salary-panel, .budget-section, .investment-section,
+.transaction-section, .finance-module, .finance-command-panel {
+  color: #1b3154 !important;
+  border-color: #e2e9f1 !important;
+  border-radius: 16px !important;
+  background: #fff !important;
+  box-shadow: 0 8px 22px rgba(28,48,76,.055) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+.panel::before, .finance-module::before { display: none !important; }
+.panel-heading h2, .panel h2, .panel-heading h3 { color: #263d5f !important; font-size: 18px !important; letter-spacing: -.45px !important; }
+.panel-heading p, .muted, .finance-report-note, .investment-disclaimer { color: #8494aa !important; }
+.category-list { gap: 0 !important; }
+.category-list > div, .repeat-list > div {
+  border-color: #edf1f5 !important;
+  padding-top: 13px !important; padding-bottom: 13px !important;
+}
+.category-list span, .repeat-list span { color: #7b8da7 !important; }
+.category-list strong, .repeat-list strong { color: #263d5f !important; }
+.chart-center strong { color: #263d5f !important; }
+.chart-center span { color: #8797ad !important; }
+.trend-chart { min-height: 245px !important; }
+.recharts-cartesian-grid-horizontal line, .recharts-cartesian-grid-vertical line { stroke: #e9eef4 !important; }
+.recharts-cartesian-axis-tick text { fill: #8192aa !important; }
+.recharts-tooltip-wrapper .recharts-default-tooltip {
+  color: #263d5f !important; background: rgba(255,255,255,.98) !important;
+  border: 1px solid #e2e9f1 !important; border-radius: 10px !important;
+  box-shadow: 0 12px 28px rgba(28,48,76,.12) !important;
+}
+.recharts-tooltip-label, .recharts-tooltip-item { color: #263d5f !important; }
+
+/* Warm orange action color, neutral secondary controls */
+.btn-primary {
+  color: #fff !important;
+  background: linear-gradient(135deg,#ff9256,#f06b2e) !important;
+  border-color: #ef6b2f !important;
+  border-radius: 10px !important;
+  box-shadow: 0 6px 15px rgba(240,107,46,.18) !important;
+}
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg,#f78343,#e75e24) !important;
+  transform: translateY(-1px) !important;
+}
+.btn-muted, .icon-button, .remove-button {
+  color: #536985 !important; background: #fff !important; border-color: #e1e8f0 !important;
+  border-radius: 10px !important;
+}
+.btn-muted:hover, .icon-button:hover { color: #ef6b2f !important; background: #fff7f2 !important; border-color: #ffd9c6 !important; }
+.category-hint, .finance-tag, .budget-history-badge {
+  color: #d9682f !important; background: #fff3eb !important; border-color: #ffdfcd !important;
+}
+
+/* Tables, secondary cards and finance feature modules */
+table th { color: #8494aa !important; background: #f8fafc !important; border-bottom-color: #e8edf3 !important; }
+table td { color: #405674 !important; border-bottom-color: #edf1f5 !important; }
+.transaction-item strong { color: #263d5f !important; }
+.transaction-item span { color: #8797ad !important; }
+.finance-report-metrics > div, .finance-summary-grid > div, .finance-command-panel,
+.module-form, .module-row, .investment-option, .finance-report-body > div {
+  background: #fbfcfe !important; border: 1px solid #e7edf4 !important;
+  border-radius: 12px !important; box-shadow: none !important;
+}
+.finance-report-metrics span, .finance-summary-grid span, .finance-field,
+.finance-command-panel > p { color: #8192aa !important; }
+.finance-report-metrics strong, .finance-summary-grid strong,
+.finance-large-number, .budget-summary strong { color: #263d5f !important; }
+
+/* Authentication and mobile navigation follow the same ThreadIQ palette */
+.auth-shell { background: #f5f7fa !important; }
+.auth-shell::before, .auth-shell::after { display: none !important; }
+.auth-panel { background: #fff !important; border: 1px solid #e2e9f1 !important; border-radius: 18px !important; box-shadow: 0 18px 48px rgba(28,48,76,.09) !important; }
+.auth-panel h1, .auth-brand-name { color: #1b3154 !important; }
+.auth-intro, .auth-security { color: #8494aa !important; }
+.auth-switch { color: #ef6b2f !important; }
+.mobile-header, .mobile-nav {
+  color: #1b3154 !important; background: rgba(255,255,255,.96) !important;
+  border-color: #e4eaf2 !important; box-shadow: 0 5px 18px rgba(28,48,76,.06) !important;
+  backdrop-filter: blur(14px) !important;
+}
+.mobile-nav button, .mobile-nav a { color: #647895 !important; }
+.mobile-nav button:hover, .mobile-nav button.active, .mobile-nav a:hover {
+  color: #ef682b !important; background: #fff6f0 !important; border-color: #ffddca !important;
+}
+
+/* ThreadIQ footer: simple divider, no liquid-glass effects */
+.dashboard-content footer {
+  color: #8494aa !important; background: transparent !important;
+  border: 0 !important; border-top: 1px solid #e4eaf1 !important;
+  border-radius: 0 !important; box-shadow: none !important;
+  backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
+  margin-top: 25px !important; padding: 17px 2px 3px !important;
+  font-size: 10px !important; min-height: 0 !important;
+}
+.dashboard-content footer::before, .dashboard-content footer::after { display: none !important; }
+.dashboard-content footer span, .dashboard-content footer span:first-child { color: #8494aa !important; font-weight: 500 !important; }
+.dashboard-content footer svg { color: #f0783d !important; }
+
+@media (max-width: 1150px) {
+  .dashboard-shell { grid-template-columns: 250px minmax(0,1fr) !important; }
+  .dashboard-content { width: calc(100% - 44px) !important; padding-top: 30px !important; }
+  .overview-chart-grid { grid-template-columns: 1fr !important; }
+}
+@media (max-width: 700px) {
+  .dashboard-shell { display: block !important; }
+  .dashboard-sidebar { display: none !important; }
+  .dashboard-content { width: calc(100% - 28px) !important; padding: 22px 0 18px !important; }
+  .page-title-row { min-height: auto !important; margin-bottom: 18px !important; flex-direction: column !important; align-items: stretch !important; gap: 14px !important; }
+  .page-title-row h1 { font-size: 32px !important; letter-spacing: -1.2px !important; }
+  .overview-actions { width: 100% !important; }
+  .overview-actions label, .overview-actions input { width: 100% !important; }
+  .kpi-grid { grid-template-columns: repeat(2,minmax(0,1fr)) !important; gap: 10px !important; }
+  .kpi { min-height: 158px !important; padding: 17px 13px 16px 18px !important; }
+  .kpi > strong { font-size: 21px !important; }
+  .kpi > p { font-size: 10px !important; }
+  .overview-chart-grid > .category-panel, .overview-chart-grid > .repeats-panel, .overview-daily-grid > .trend-panel { padding: 16px !important; }
+}
+@media (max-width: 420px) {
+  .kpi-grid { grid-template-columns: 1fr !important; }
+  .kpi { min-height: 130px !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; scroll-behavior: auto !important; }
+}
