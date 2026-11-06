@@ -61,6 +61,22 @@ export default function Home() {
   const saved=categoryRows.map(x=>x.name);setCategories([...new Set([...CATEGORIES,...saved])]);
  }catch(err){setError(err instanceof Error?err.message:"Unable to load your complete finance ledger.");}finally{setLoading(false);}},[]);
  useEffect(()=>{ if(!supabase){setError("Supabase configuration is missing. Add the public project URL and publishable key.");setLoading(false);return;} supabase.auth.getSession().then(({data})=>{setSession(data.session);if(data.session?.user){loadedUserId.current=data.session.user.id;load(data.session.user.id);}else{loadedUserId.current=null;setLoading(false);}});const {data:{subscription}}=supabase.auth.onAuthStateChange((_event,s)=>{setSession(s);if(s?.user){if(loadedUserId.current!==s.user.id){loadedUserId.current=s.user.id;load(s.user.id);}}else{loadedUserId.current=null;setSalary(null);setSalaryHistory([]);setExpenses([]);setIncomes([]);setTransfers([]);setLoading(false);}});return()=>subscription.unsubscribe();},[load]);
+
+ // A Back/Forward Cache restore does not reload the document. Clear the in-memory
+ // session on that return path as well, so the user must sign in again.
+ useEffect(()=>{
+  if(typeof window==="undefined")return;
+  try{window.localStorage.removeItem("sb-ssgbabvtmijhkrqgyrmp-auth-token");}catch{}
+  const handlePageShow=(event:PageTransitionEvent)=>{
+   if(!event.persisted)return;
+   setSession(null);loadedUserId.current=null;
+   setSalary(null);setSalaryHistory([]);setExpenses([]);setIncomes([]);setTransfers([]);
+   setLoading(false);
+   void supabase.auth.signOut({scope:"local"});
+  };
+  window.addEventListener("pageshow",handlePageShow);
+  return()=>window.removeEventListener("pageshow",handlePageShow);
+ },[]);
  const currentExpenses=useMemo(()=>expenses.filter(e=>e.spent_at.startsWith(month)),[expenses,month]);
  const currentIncomes=useMemo(()=>incomes.filter(e=>e.received_at.startsWith(month)),[incomes,month]);
  const currentTransfers=useMemo(()=>transfers.filter(e=>e.transferred_at.startsWith(month)),[transfers,month]);
