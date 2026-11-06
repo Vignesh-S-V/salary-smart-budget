@@ -89,7 +89,8 @@ export default function Home() {
  const previousRecordedIncome=previousTransactionIncome+previousSalaryHistoryIncome;
  const previousRecordedExpenses=expenses.filter(x=>x.spent_at<monthStart).reduce((sum,x)=>sum+Number(x.amount),0);
  const carryForwardBalance=previousRecordedIncome-previousRecordedExpenses;
- const actualMonthIncome=importedSalary+otherIncome;
+ // Keep balance math consistent with the Monthly income KPI. Salary-history entries must count even when no imported salary transaction exists.
+ const actualMonthIncome=salaryIncome+otherIncome;
  const trackedFunds=actualMonthIncome+carryForwardBalance;
  const balance=trackedFunds-monthTotal;
  const daily=useMemo(()=>{const map=new Map<string,number>();currentExpenses.forEach(e=>map.set(e.spent_at,(map.get(e.spent_at)||0)+Number(e.amount)));return Array.from(map.entries()).sort((a,b)=>a[0].localeCompare(b[0])).map(([date,total])=>({date:date.slice(5),total}));},[currentExpenses]);
